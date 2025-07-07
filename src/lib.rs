@@ -17,16 +17,16 @@ pub mod hardware_emulator;
 // Desktop-specific modules (feature-gated)
 #[cfg(feature = "desktop")]
 pub mod desktop {
+    pub mod android_studio_integration;
     pub mod app;
     pub mod audio;
     pub mod computer_vision;
     pub mod ui;
-    pub mod android_studio_integration;
     pub mod xcode_integration;
-    
-    pub use app::{KMobileDesktopApp, Args};
+
     pub use super::device_bridge::DeviceBridge;
     pub use super::hardware_emulator::HardwareEmulator;
+    pub use app::{Args, KMobileDesktopApp};
 }
 
 pub use cli::KMobileCli;

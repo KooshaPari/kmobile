@@ -11,7 +11,9 @@ use tracing::{debug, info};
 
 #[derive(Parser, Debug, Clone)]
 #[command(name = "kmobile-desktop")]
-#[command(about = "KMobile Desktop - Revolutionary hardware emulation and visual control for mobile devices")]
+#[command(
+    about = "KMobile Desktop - Revolutionary hardware emulation and visual control for mobile devices"
+)]
 pub struct Args {
     #[arg(long, default_value = "3000")]
     pub port: u16,
@@ -31,9 +33,9 @@ pub struct Args {
 
 use crate::desktop::audio::AudioProcessor;
 use crate::desktop::computer_vision::ScreenAnalyzer;
+use crate::desktop::ui::{AgentPanel, AudioPanel, DevicePanel, HardwarePanel, VisionPanel};
 use crate::device_bridge::DeviceBridge;
 use crate::hardware_emulator::HardwareEmulator;
-use crate::desktop::ui::{AgentPanel, AudioPanel, DevicePanel, HardwarePanel, VisionPanel};
 
 pub struct KMobileDesktopApp {
     // Core components
@@ -107,7 +109,7 @@ impl KMobileDesktopApp {
 
     pub async fn run(self) -> Result<()> {
         info!("🚀 Starting KMobile Desktop Application");
-        
+
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
                 .with_inner_size([1200.0, 800.0])

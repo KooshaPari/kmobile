@@ -1,10 +1,12 @@
-use clap::Parser;
-use kmobile::desktop::{KMobileDesktopApp, Args};
 use anyhow::Result;
+use clap::Parser;
+use kmobile::desktop::{Args, KMobileDesktopApp};
 
 #[derive(Parser)]
 #[command(name = "kmobile-desktop")]
-#[command(about = "KMobile Desktop - Revolutionary hardware emulation and visual control for mobile devices")]
+#[command(
+    about = "KMobile Desktop - Revolutionary hardware emulation and visual control for mobile devices"
+)]
 struct CliArgs {
     #[arg(long, default_value = "3000")]
     pub port: u16,
@@ -37,7 +39,7 @@ impl From<CliArgs> for Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli_args = CliArgs::parse();
-    
+
     // Initialize logging
     if cli_args.debug {
         std::env::set_var("RUST_LOG", "debug");
@@ -45,10 +47,10 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     let args: Args = cli_args.into();
-    
+
     // Initialize and run the desktop application
     let app = KMobileDesktopApp::new(&args).await?;
     app.run().await?;
-    
+
     Ok(())
 }

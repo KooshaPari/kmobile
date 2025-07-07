@@ -2,11 +2,11 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::info;
 
-use kmobile::{KMobileCli, Config};
 use kmobile::device_basic::DeviceCommands;
-use kmobile::simulator_basic::SimulatorCommands;
 use kmobile::project::ProjectCommands;
+use kmobile::simulator_basic::SimulatorCommands;
 use kmobile::testing::TestCommands;
+use kmobile::{Config, KMobileCli};
 
 #[derive(Parser)]
 #[command(name = "kmobile")]

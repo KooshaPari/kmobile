@@ -276,8 +276,7 @@ pub enum LocationScenario {
     Custom(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AccessibilitySettings {
     pub voice_over_enabled: bool,
     pub zoom_enabled: bool,
@@ -1332,10 +1331,7 @@ impl XcodeIntegration {
             let entry = entry?;
             let path = entry.path();
 
-            if path
-                .extension()
-                .is_some_and(|ext| ext == "mobileprovision")
-            {
+            if path.extension().is_some_and(|ext| ext == "mobileprovision") {
                 if let Ok(profile) = self.load_provisioning_profile(&path).await {
                     self.provisioning_manager
                         .profiles
@@ -1492,8 +1488,6 @@ impl XcodeIntegration {
     }
 
     fn parse_installed_apps(&self, _output: &str) -> HashMap<String, AppInfo> {
-        
-
         // Parse installed apps from simctl output
         // This would be implemented based on the actual output format
 
@@ -1754,7 +1748,6 @@ impl Default for XcodeConfig {
         }
     }
 }
-
 
 // ============================================================================
 // Component Constructors
