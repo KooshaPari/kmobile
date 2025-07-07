@@ -62,15 +62,20 @@ pub struct McpError {
 
 pub struct McpServer {
     config: Config,
+    #[allow(dead_code)]
     device_manager: Arc<RwLock<DeviceManager>>,
+    #[allow(dead_code)]
     simulator_manager: Arc<RwLock<SimulatorManager>>,
+    #[allow(dead_code)]
     project_manager: Arc<RwLock<ProjectManager>>,
+    #[allow(dead_code)]
     test_runner: Arc<RwLock<TestRunner>>,
     tools: HashMap<String, McpTool>,
     resources: HashMap<String, McpResource>,
     prompts: HashMap<String, McpPrompt>,
 }
 
+#[allow(dead_code)]
 impl McpServer {
     pub async fn new(config: &Config, _config_path: Option<&str>) -> Result<Self> {
         let device_manager = Arc::new(RwLock::new(DeviceManager::new(config).await?));

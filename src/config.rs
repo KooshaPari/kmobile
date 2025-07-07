@@ -155,6 +155,7 @@ impl Config {
         &self.name
     }
 
+    #[allow(dead_code)]
     pub fn detect_android_sdk(&mut self) -> Result<()> {
         // Try to detect Android SDK path
         if let Ok(sdk_path) = std::env::var("ANDROID_SDK_ROOT") {
@@ -174,6 +175,7 @@ impl Config {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn detect_ios_tools(&mut self) -> Result<()> {
         // Try to detect Xcode path
         if let Ok(output) = std::process::Command::new("xcode-select")

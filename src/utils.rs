@@ -23,6 +23,7 @@ pub struct ToolInfo {
     pub available: bool,
 }
 
+#[allow(dead_code)]
 pub async fn detect_system_info() -> Result<SystemInfo> {
     let os = std::env::consts::OS.to_string();
     let arch = std::env::consts::ARCH.to_string();
@@ -69,6 +70,7 @@ pub async fn detect_system_info() -> Result<SystemInfo> {
     })
 }
 
+#[allow(dead_code)]
 async fn get_os_version() -> Result<String> {
     let output = Command::new("sw_vers").args(["-productVersion"]).output();
 
@@ -83,6 +85,7 @@ async fn get_os_version() -> Result<String> {
     }
 }
 
+#[allow(dead_code)]
 async fn check_tool_availability(tool_name: &str) -> Result<ToolInfo> {
     // First, try to find the tool using 'which'
     let which_output = Command::new("which").arg(tool_name).output();
@@ -135,6 +138,7 @@ async fn check_tool_availability(tool_name: &str) -> Result<ToolInfo> {
     })
 }
 
+#[allow(dead_code)]
 async fn get_tool_version(tool_name: &str, tool_path: &str) -> Result<String> {
     let version_args = match tool_name {
         "adb" => vec!["version"],
@@ -186,6 +190,7 @@ async fn get_tool_version(tool_name: &str, tool_path: &str) -> Result<String> {
     Ok(version)
 }
 
+#[allow(dead_code)]
 pub fn validate_app_path(app_path: &str) -> Result<()> {
     let path = Path::new(app_path);
 
@@ -209,6 +214,7 @@ pub fn validate_app_path(app_path: &str) -> Result<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn generate_device_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
@@ -218,6 +224,7 @@ pub fn generate_device_id() -> String {
     format!("kmobile-{timestamp}")
 }
 
+#[allow(dead_code)]
 pub fn parse_coordinates(coordinate_str: &str) -> Result<(i32, i32)> {
     let parts: Vec<&str> = coordinate_str.split(',').collect();
     if parts.len() != 2 {
@@ -239,6 +246,7 @@ pub fn parse_coordinates(coordinate_str: &str) -> Result<(i32, i32)> {
     Ok((x, y))
 }
 
+#[allow(dead_code)]
 pub fn format_duration(duration: std::time::Duration) -> String {
     let total_seconds = duration.as_secs();
     let hours = total_seconds / 3600;
@@ -254,6 +262,7 @@ pub fn format_duration(duration: std::time::Duration) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn create_backup_file(file_path: &str) -> Result<String> {
     let path = Path::new(file_path);
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
@@ -272,6 +281,7 @@ pub fn create_backup_file(file_path: &str) -> Result<String> {
     Ok(backup_path.to_string_lossy().to_string())
 }
 
+#[allow(dead_code)]
 pub fn cleanup_temp_files(temp_dir: &str) -> Result<()> {
     let path = Path::new(temp_dir);
     if path.exists() && path.is_dir() {
@@ -280,6 +290,7 @@ pub fn cleanup_temp_files(temp_dir: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn get_available_port() -> Result<u16> {
     use std::net::TcpListener;
 
@@ -288,12 +299,14 @@ pub fn get_available_port() -> Result<u16> {
     Ok(addr.port())
 }
 
+#[allow(dead_code)]
 pub fn is_port_available(port: u16) -> bool {
     use std::net::{SocketAddr, TcpListener};
 
     TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], port))).is_ok()
 }
 
+#[allow(dead_code)]
 pub fn sanitize_filename(filename: &str) -> String {
     filename
         .chars()
@@ -304,6 +317,7 @@ pub fn sanitize_filename(filename: &str) -> String {
         .collect()
 }
 
+#[allow(dead_code)]
 pub fn truncate_string(s: &str, max_length: usize) -> String {
     if s.len() <= max_length {
         s.to_string()
@@ -312,6 +326,7 @@ pub fn truncate_string(s: &str, max_length: usize) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn retry_with_backoff<F, R, E>(
     mut operation: F,
     max_retries: usize,

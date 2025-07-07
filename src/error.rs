@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum KMobileError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
@@ -79,6 +80,7 @@ pub enum KMobileError {
 }
 
 impl KMobileError {
+    #[allow(dead_code)]
     pub fn is_recoverable(&self) -> bool {
         match self {
             KMobileError::ConfigError(_) => false,
@@ -109,6 +111,7 @@ impl KMobileError {
         }
     }
 
+    #[allow(dead_code)]
     pub fn error_code(&self) -> &'static str {
         match self {
             KMobileError::ConfigError(_) => "CONFIG_ERROR",
@@ -181,6 +184,7 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for KMobileError {
 
 // Error context helpers
 pub trait ErrorContext<T> {
+    #[allow(dead_code)]
     fn with_context(self, context: &str) -> Result<T>;
 }
 
