@@ -1,3 +1,7 @@
+//! Android Studio Integration and Android Development Automation
+//! This module is under active development and contains placeholder implementations
+#![allow(dead_code)]
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

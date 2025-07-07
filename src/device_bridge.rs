@@ -8,6 +8,7 @@ use tracing::{debug, info, warn};
 /// Provides real-time communication with mobile devices and simulators
 /// Enables hardware injection and screen capture
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DeviceBridge {
     // Connected devices
     connected_devices: HashMap<String, DeviceConnection>,
@@ -16,7 +17,8 @@ pub struct DeviceBridge {
     adb_controller: AdbController,
     ios_controller: IosController,
 
-    // Network communication
+    // Network communication (desktop feature only)
+    #[cfg(feature = "desktop")]
     websocket_server: Option<
         tokio_tungstenite::WebSocketStream<
             tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
@@ -111,6 +113,7 @@ impl DeviceBridge {
             connected_devices: HashMap::new(),
             adb_controller,
             ios_controller,
+            #[cfg(feature = "desktop")]
             websocket_server: None,
             screen_capture,
             hardware_injector,
@@ -405,6 +408,7 @@ impl DeviceBridge {
         }
     }
 
+    #[allow(private_interfaces)]
     pub fn get_connected_devices(&self) -> Vec<&DeviceConnection> {
         self.connected_devices.values().collect()
     }

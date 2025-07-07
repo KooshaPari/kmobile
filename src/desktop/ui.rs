@@ -1,3 +1,7 @@
+//! Desktop UI Panels for Hardware Emulation Control
+//! This module is under active development and contains placeholder implementations
+#![allow(dead_code)]
+
 use eframe::egui;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -10,7 +14,6 @@ use crate::hardware_emulator::HardwareEmulator;
 
 /// Interactive UI Panels for Hardware Emulation Control
 /// Provides intuitive interfaces for controlling mobile device hardware
-
 pub struct DevicePanel {
     device_bridge: Arc<RwLock<DeviceBridge>>,
     device_search: String,

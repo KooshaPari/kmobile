@@ -1,3 +1,7 @@
+//! Xcode Integration and iOS Development Automation
+//! This module is under active development and contains placeholder implementations
+#![allow(dead_code, unused_variables)]
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -83,8 +87,8 @@ pub struct SimulatorInfo {
     pub state: SimulatorState,
     pub availability: String,
     pub is_available: bool,
-    pub dataPath: Option<PathBuf>,
-    pub logPath: Option<PathBuf>,
+    pub data_path: Option<PathBuf>,
+    pub log_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1496,7 +1500,7 @@ impl XcodeIntegration {
         HashMap::new()
     }
 
-    fn parse_provisioning_profile(&self, profile_data: &str) -> Result<ProvisioningProfile> {
+    fn parse_provisioning_profile(&self, _profile_data: &str) -> Result<ProvisioningProfile> {
         // Parse provisioning profile plist data
         // This would be implemented to parse the actual plist format
 

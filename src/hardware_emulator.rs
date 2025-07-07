@@ -102,7 +102,7 @@ pub enum NetworkType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ThermalState {
     Normal,
-    Slightly_Warm,
+    SlightlyWarm,
     Warm,
     Hot,
     Critical,
@@ -371,7 +371,7 @@ impl HardwareEmulator {
         );
 
         // Start background tasks for continuous sensor simulation
-        let device_id_clone = device_id.to_string();
+        let _device_id_clone = device_id.to_string();
         tokio::spawn(async move {
             // GPS simulation loop
             loop {
@@ -381,7 +381,7 @@ impl HardwareEmulator {
             }
         });
 
-        let device_id_clone = device_id.to_string();
+        let _device_id_clone = device_id.to_string();
         tokio::spawn(async move {
             // Accelerometer simulation loop
             loop {

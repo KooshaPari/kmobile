@@ -1,3 +1,7 @@
+//! Computer Vision and Screen Analysis for Mobile Devices
+//! This module is under active development and contains placeholder implementations
+#![allow(dead_code)]
+
 use anyhow::Result;
 // use opencv::{core, imgproc, objdetect, prelude::*};  // Optional dependency
 use serde::{Deserialize, Serialize};
@@ -208,38 +212,36 @@ impl ScreenAnalyzer {
         debug!("🎯 Detecting UI elements");
 
         // Placeholder implementation - would use computer vision techniques
-        let mut elements = Vec::new();
-
-        // Simulate some detected UI elements
-        elements.push(UiElement {
-            element_type: UiElementType::Button,
-            bounds: Rectangle {
-                x: 100,
-                y: 200,
-                width: 150,
-                height: 50,
+        let elements = vec![
+            UiElement {
+                element_type: UiElementType::Button,
+                bounds: Rectangle {
+                    x: 100,
+                    y: 200,
+                    width: 150,
+                    height: 50,
+                },
+                text: Some("Login".to_string()),
+                clickable: true,
+                enabled: true,
+                confidence: 0.9,
+                attributes: HashMap::new(),
             },
-            text: Some("Login".to_string()),
-            clickable: true,
-            enabled: true,
-            confidence: 0.9,
-            attributes: HashMap::new(),
-        });
-
-        elements.push(UiElement {
-            element_type: UiElementType::TextField,
-            bounds: Rectangle {
-                x: 50,
-                y: 100,
-                width: 200,
-                height: 40,
+            UiElement {
+                element_type: UiElementType::TextField,
+                bounds: Rectangle {
+                    x: 50,
+                    y: 100,
+                    width: 200,
+                    height: 40,
+                },
+                text: Some("Username".to_string()),
+                clickable: true,
+                enabled: true,
+                confidence: 0.8,
+                attributes: HashMap::new(),
             },
-            text: Some("Username".to_string()),
-            clickable: true,
-            enabled: true,
-            confidence: 0.8,
-            attributes: HashMap::new(),
-        });
+        ];
 
         Ok(elements)
     }
@@ -258,10 +260,7 @@ impl ScreenAnalyzer {
         // Placeholder OCR implementation
         // In production, would integrate with Tesseract or cloud OCR services
 
-        let mut text_regions = Vec::new();
-
-        // Simulate text detection
-        text_regions.push(TextRegion {
+        let text_regions = vec![TextRegion {
             text: "[OCR text would appear here]".to_string(),
             bounds: Rectangle {
                 x: 100,
@@ -272,7 +271,7 @@ impl ScreenAnalyzer {
             confidence: 0.9,
             language: Some("en".to_string()),
             font_size: Some(16.0),
-        });
+        }];
 
         Ok(text_regions)
     }

@@ -1,3 +1,7 @@
+//! Audio Processing and TTS/STT for Mobile Device Interaction
+//! This module is under active development and contains placeholder implementations
+#![allow(dead_code, unused_variables, unused_mut)]
+
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::sync::{Arc, Mutex};
@@ -218,7 +222,7 @@ impl AudioProcessor {
     pub async fn route_audio_to_device(
         &mut self,
         device_id: &str,
-        audio_data: Vec<f32>,
+        _audio_data: Vec<f32>,
     ) -> Result<()> {
         debug!("🎵 Routing audio to device: {}", device_id);
 
@@ -262,7 +266,7 @@ impl AudioProcessor {
         );
 
         // Start continuous audio processing loop
-        let device_id = device_id.to_string();
+        let _device_id = device_id.to_string();
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
