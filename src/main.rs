@@ -2,18 +2,11 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::info;
 
-mod cli;
-mod config;
-mod device;
-mod error;
-mod mcp;
-mod project;
-mod simulator;
-mod testing;
-mod utils;
-
-use cli::KMobileCli;
-use config::Config;
+use kmobile::{KMobileCli, Config};
+use kmobile::device_basic::DeviceCommands;
+use kmobile::simulator_basic::SimulatorCommands;
+use kmobile::project::ProjectCommands;
+use kmobile::testing::TestCommands;
 
 #[derive(Parser)]
 #[command(name = "kmobile")]
@@ -43,25 +36,25 @@ enum Commands {
     /// Device management commands
     Device {
         #[command(subcommand)]
-        command: device::DeviceCommands,
+        command: DeviceCommands,
     },
 
     /// Simulator management commands
     Simulator {
         #[command(subcommand)]
-        command: simulator::SimulatorCommands,
+        command: SimulatorCommands,
     },
 
     /// Project management commands
     Project {
         #[command(subcommand)]
-        command: project::ProjectCommands,
+        command: ProjectCommands,
     },
 
     /// Testing automation commands
     Test {
         #[command(subcommand)]
-        command: testing::TestCommands,
+        command: TestCommands,
     },
 
     /// Start API server

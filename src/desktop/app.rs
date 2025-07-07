@@ -1,14 +1,35 @@
 use anyhow::Result;
+use clap::Parser;
 use eframe::egui;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info};
 
-use crate::audio::AudioProcessor;
-use crate::computer_vision::ScreenAnalyzer;
+#[derive(Parser, Debug, Clone)]
+#[command(name = "kmobile-desktop")]
+#[command(about = "KMobile Desktop - Revolutionary hardware emulation and visual control for mobile devices")]
+pub struct Args {
+    #[arg(long, default_value = "3000")]
+    pub port: u16,
+
+    #[arg(long, default_value = "localhost")]
+    pub host: String,
+
+    #[arg(long)]
+    pub device_id: Option<String>,
+
+    #[arg(long)]
+    pub fullscreen: bool,
+
+    #[arg(long)]
+    pub debug: bool,
+}
+
+use crate::desktop::audio::AudioProcessor;
+use crate::desktop::computer_vision::ScreenAnalyzer;
 use crate::device_bridge::DeviceBridge;
 use crate::hardware_emulator::HardwareEmulator;
-use crate::ui::{AgentPanel, AudioPanel, DevicePanel, HardwarePanel, VisionPanel};
+use crate::desktop::ui::{AgentPanel, AudioPanel, DevicePanel, HardwarePanel, VisionPanel};
 
 pub struct KMobileDesktopApp {
     // Core components
@@ -38,7 +59,7 @@ pub struct KMobileDesktopApp {
 }
 
 impl KMobileDesktopApp {
-    pub async fn new(args: &crate::Args) -> Result<Self> {
+    pub async fn new(args: &Args) -> Result<Self> {
         info!("🎯 Initializing KMobile Desktop components...");
 
         // Initialize core components
@@ -78,6 +99,26 @@ impl KMobileDesktopApp {
             right_panel_width: 300.0,
             main_panel_height: 600.0,
         })
+    }
+
+    pub async fn run(self) -> Result<()> {
+        info!("🚀 Starting KMobile Desktop Application");
+        
+        let options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([1200.0, 800.0])
+                .with_min_inner_size([800.0, 600.0]),
+            ..Default::default()
+        };
+
+        eframe::run_native(
+            "KMobile Desktop - Revolutionary Mobile Hardware Emulation",
+            options,
+            Box::new(|_cc| Ok(Box::new(self))),
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to start desktop application: {}", e))?;
+
+        Ok(())
     }
 
     async fn connect_to_device(&mut self, device_id: &str) -> Result<()> {

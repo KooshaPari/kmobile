@@ -3,8 +3,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use crate::audio::AudioProcessor;
-use crate::computer_vision::ScreenAnalyzer;
+use crate::desktop::audio::AudioProcessor;
+use crate::desktop::computer_vision::ScreenAnalyzer;
 use crate::device_bridge::DeviceBridge;
 use crate::hardware_emulator::HardwareEmulator;
 

@@ -6,10 +6,10 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
-use crate::device::DeviceManager;
+use crate::device_basic::DeviceManager;
 use crate::error::KMobileError;
 use crate::project::ProjectManager;
-use crate::simulator::SimulatorManager;
+use crate::simulator_basic::SimulatorManager;
 use crate::testing::TestRunner;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

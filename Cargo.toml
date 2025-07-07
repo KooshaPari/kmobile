@@ -38,7 +38,7 @@ thiserror = "1.0"
 
 # Device communication
 plist = "1.5"
-uuid = "1.6"
+uuid = { version = "1.6", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Testing frameworks
@@ -48,6 +48,36 @@ tempfile = "3.8"
 # Terminal UI (optional)
 crossterm = { version = "0.27", optional = true }
 ratatui = { version = "0.24", optional = true }
+
+# Desktop GUI dependencies (feature-gated)  
+eframe = { version = "0.28", optional = true }
+egui = { version = "0.28", optional = true }
+egui_extras = { version = "0.28", features = ["default"], optional = true }
+
+# Image processing and computer vision (feature-gated)
+image = { version = "0.25", optional = true }
+imageproc = { version = "0.25", optional = true }
+rusttype = { version = "0.9", optional = true }
+
+# Audio processing (feature-gated)
+cpal = { version = "0.15", optional = true }
+rodio = { version = "0.19", optional = true }
+tts = { version = "0.26", optional = true }
+hound = { version = "3.5", optional = true }
+
+# Hardware simulation (feature-gated)
+winit = { version = "0.30", optional = true }
+gilrs = { version = "0.10", optional = true }
+
+# Networking protocols (feature-gated)
+tokio-tungstenite = { version = "0.23", optional = true }
+futures-util = { version = "0.3", optional = true }
+
+# System integration (feature-gated)
+directories = { version = "5.0", optional = true }
+dirs = { version = "5.0", optional = true }
+env_logger = { version = "0.11", optional = true }
+regex = { version = "1.10", optional = true }
 
 # MCP protocol (optional - will implement custom)
 # mcp = "0.1"
@@ -70,9 +100,16 @@ path = "src/main.rs"
 name = "kmobile-mcp"
 path = "src/mcp_server.rs"
 
+[[bin]]
+name = "kmobile-desktop"
+path = "src/bin/desktop.rs"
+required-features = ["desktop"]
+
 [features]
 default = ["cli", "api", "mcp"]
 cli = []
 api = []
 mcp = []
 tui = ["crossterm", "ratatui"]
+desktop = ["eframe", "egui", "egui_extras", "image", "imageproc", "rusttype", "cpal", "rodio", "tts", "hound", "winit", "gilrs", "tokio-tungstenite", "futures-util", "directories", "dirs", "env_logger", "regex"]
+audio = ["cpal", "rodio", "tts", "hound"]

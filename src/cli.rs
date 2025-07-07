@@ -2,10 +2,10 @@ use anyhow::Result;
 use tracing::{info, warn};
 
 use crate::config::Config;
-use crate::device::{DeviceCommands, DeviceManager};
+use crate::device_basic::{DeviceCommands, DeviceManager};
 use crate::mcp::McpServer;
 use crate::project::{ProjectCommands, ProjectManager};
-use crate::simulator::{SimulatorCommands, SimulatorManager};
+use crate::simulator_basic::{SimulatorCommands, SimulatorManager};
 use crate::testing::{TestCommands, TestRunner};
 
 pub struct KMobileCli {
