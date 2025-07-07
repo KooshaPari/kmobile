@@ -22,10 +22,10 @@ use config::Config;
 struct Args {
     #[command(subcommand)]
     command: Commands,
-    
+
     #[arg(long, global = true)]
     config: Option<String>,
-    
+
     #[arg(long, global = true)]
     verbose: bool,
 }
@@ -39,31 +39,31 @@ enum Commands {
         #[arg(long, help = "Project template")]
         template: Option<String>,
     },
-    
+
     /// Device management commands
     Device {
         #[command(subcommand)]
         command: device::DeviceCommands,
     },
-    
+
     /// Simulator management commands
     Simulator {
         #[command(subcommand)]
         command: simulator::SimulatorCommands,
     },
-    
+
     /// Project management commands
     Project {
         #[command(subcommand)]
         command: project::ProjectCommands,
     },
-    
+
     /// Testing automation commands
     Test {
         #[command(subcommand)]
         command: testing::TestCommands,
     },
-    
+
     /// Start API server
     Serve {
         #[arg(long, default_value = "3000")]
@@ -71,13 +71,13 @@ enum Commands {
         #[arg(long, default_value = "localhost")]
         host: String,
     },
-    
+
     /// Start MCP server
     Mcp {
         #[arg(long, help = "MCP server configuration")]
         config: Option<String>,
     },
-    
+
     /// Start TUI interface
     Tui,
 }
@@ -85,20 +85,20 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     // Initialize tracing
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(if args.verbose { "debug" } else { "info" })
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
-    
+
     // Load configuration
     let config = Config::load(args.config.as_deref())?;
     info!("KMobile started with config: {}", config.name());
-    
+
     // Initialize CLI
     let cli = KMobileCli::new(config).await?;
-    
+
     match args.command {
         Commands::Init { name, template } => {
             cli.init_project(&name, template.as_deref()).await?;
@@ -125,6 +125,6 @@ async fn main() -> Result<()> {
             cli.start_tui().await?;
         }
     }
-    
+
     Ok(())
 }

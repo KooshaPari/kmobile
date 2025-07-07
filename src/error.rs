@@ -4,76 +4,76 @@ use thiserror::Error;
 pub enum KMobileError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
-    
+
     #[error("Device not found: {0}")]
     DeviceNotFound(String),
-    
+
     #[error("Device connection error: {0}")]
     DeviceConnectionError(String),
-    
+
     #[error("Simulator not found: {0}")]
     SimulatorNotFound(String),
-    
+
     #[error("Simulator start error: {0}")]
     SimulatorStartError(String),
-    
+
     #[error("Simulator stop error: {0}")]
     SimulatorStopError(String),
-    
+
     #[error("Simulator reset error: {0}")]
     SimulatorResetError(String),
-    
+
     #[error("Project not found: {0}")]
     ProjectNotFound(String),
-    
+
     #[error("Project initialization error: {0}")]
     ProjectInitError(String),
-    
+
     #[error("Project deploy error: {0}")]
     ProjectDeployError(String),
-    
+
     #[error("Build error: {0}")]
     BuildError(String),
-    
+
     #[error("Test execution error: {0}")]
     TestExecutionError(String),
-    
+
     #[error("Test file not found: {0}")]
     TestFileNotFound(String),
-    
+
     #[error("App installation error: {0}")]
     AppInstallError(String),
-    
+
     #[error("Command execution error: {0}")]
     CommandError(String),
-    
+
     #[error("MCP server error: {0}")]
     McpServerError(String),
-    
+
     #[error("API server error: {0}")]
     ApiServerError(String),
-    
+
     #[error("Network error: {0}")]
     NetworkError(String),
-    
+
     #[error("File system error: {0}")]
     FileSystemError(String),
-    
+
     #[error("Serialization error: {0}")]
     SerializationError(String),
-    
+
     #[error("Authentication error: {0}")]
     AuthenticationError(String),
-    
+
     #[error("Permission error: {0}")]
     PermissionError(String),
-    
+
     #[error("Timeout error: {0}")]
     TimeoutError(String),
-    
+
     #[error("Invalid input: {0}")]
     InvalidInput(String),
-    
+
     #[error("Unknown error: {0}")]
     Unknown(String),
 }
@@ -108,7 +108,7 @@ impl KMobileError {
             KMobileError::Unknown(_) => false,
         }
     }
-    
+
     pub fn error_code(&self) -> &'static str {
         match self {
             KMobileError::ConfigError(_) => "CONFIG_ERROR",
@@ -191,7 +191,7 @@ where
     fn with_context(self, context: &str) -> Result<T> {
         match self {
             Ok(value) => Ok(value),
-            Err(error) => Err(KMobileError::Unknown(format!("{}: {}", context, error))),
+            Err(error) => Err(KMobileError::Unknown(format!("{context}: {error}"))),
         }
     }
 }

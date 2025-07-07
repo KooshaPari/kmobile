@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use tracing::{debug, warn};
+use tracing::debug;
 
 use crate::error::KMobileError;
 
@@ -27,40 +27,40 @@ pub async fn detect_system_info() -> Result<SystemInfo> {
     let os = std::env::consts::OS.to_string();
     let arch = std::env::consts::ARCH.to_string();
     let version = get_os_version().await?;
-    
+
     let mut available_tools = HashMap::new();
-    
+
     // Check for Android tools
     if let Ok(tool_info) = check_tool_availability("adb").await {
         available_tools.insert("adb".to_string(), tool_info);
     }
-    
+
     // Check for iOS tools
     if let Ok(tool_info) = check_tool_availability("simctl").await {
         available_tools.insert("simctl".to_string(), tool_info);
     }
-    
+
     if let Ok(tool_info) = check_tool_availability("xcodebuild").await {
         available_tools.insert("xcodebuild".to_string(), tool_info);
     }
-    
+
     // Check for other tools
     if let Ok(tool_info) = check_tool_availability("instruments").await {
         available_tools.insert("instruments".to_string(), tool_info);
     }
-    
+
     if let Ok(tool_info) = check_tool_availability("ios-deploy").await {
         available_tools.insert("ios-deploy".to_string(), tool_info);
     }
-    
+
     if let Ok(tool_info) = check_tool_availability("flutter").await {
         available_tools.insert("flutter".to_string(), tool_info);
     }
-    
+
     if let Ok(tool_info) = check_tool_availability("react-native").await {
         available_tools.insert("react-native".to_string(), tool_info);
     }
-    
+
     Ok(SystemInfo {
         os,
         version,
@@ -70,10 +70,8 @@ pub async fn detect_system_info() -> Result<SystemInfo> {
 }
 
 async fn get_os_version() -> Result<String> {
-    let output = Command::new("sw_vers")
-        .args(["-productVersion"])
-        .output();
-    
+    let output = Command::new("sw_vers").args(["-productVersion"]).output();
+
     match output {
         Ok(output) if output.status.success() => {
             Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
@@ -87,10 +85,8 @@ async fn get_os_version() -> Result<String> {
 
 async fn check_tool_availability(tool_name: &str) -> Result<ToolInfo> {
     // First, try to find the tool using 'which'
-    let which_output = Command::new("which")
-        .arg(tool_name)
-        .output();
-    
+    let which_output = Command::new("which").arg(tool_name).output();
+
     let path = match which_output {
         Ok(output) if output.status.success() => {
             String::from_utf8_lossy(&output.stdout).trim().to_string()
@@ -113,7 +109,7 @@ async fn check_tool_availability(tool_name: &str) -> Result<ToolInfo> {
                 ],
                 _ => vec![],
             };
-            
+
             let mut found_path = None;
             for path in common_paths {
                 if Path::new(path).exists() {
@@ -121,14 +117,17 @@ async fn check_tool_availability(tool_name: &str) -> Result<ToolInfo> {
                     break;
                 }
             }
-            
-            found_path.ok_or_else(|| KMobileError::CommandError(format!("Tool {} not found", tool_name)))?
+
+            found_path
+                .ok_or_else(|| KMobileError::CommandError(format!("Tool {tool_name} not found")))?
         }
     };
-    
+
     // Try to get version
-    let version = get_tool_version(tool_name, &path).await.unwrap_or_else(|_| "unknown".to_string());
-    
+    let version = get_tool_version(tool_name, &path)
+        .await
+        .unwrap_or_else(|_| "unknown".to_string());
+
     Ok(ToolInfo {
         path,
         version,
@@ -147,18 +146,19 @@ async fn get_tool_version(tool_name: &str, tool_path: &str) -> Result<String> {
         "react-native" => vec!["--version"],
         _ => vec!["--version"],
     };
-    
-    let output = Command::new(tool_path)
-        .args(&version_args)
-        .output()?;
-    
+
+    let output = Command::new(tool_path).args(&version_args).output()?;
+
     let output_str = String::from_utf8_lossy(&output.stdout);
-    
+
     // Extract version from output
     let version = match tool_name {
         "adb" => {
             if let Some(line) = output_str.lines().next() {
-                line.split_whitespace().last().unwrap_or("unknown").to_string()
+                line.split_whitespace()
+                    .last()
+                    .unwrap_or("unknown")
+                    .to_string()
             } else {
                 "unknown".to_string()
             }
@@ -173,28 +173,36 @@ async fn get_tool_version(tool_name: &str, tool_path: &str) -> Result<String> {
         _ => {
             // Try to extract version from first line
             if let Some(line) = output_str.lines().next() {
-                line.split_whitespace().last().unwrap_or("unknown").to_string()
+                line.split_whitespace()
+                    .last()
+                    .unwrap_or("unknown")
+                    .to_string()
             } else {
                 "unknown".to_string()
             }
         }
     };
-    
+
     Ok(version)
 }
 
 pub fn validate_app_path(app_path: &str) -> Result<()> {
     let path = Path::new(app_path);
-    
+
     if !path.exists() {
-        return Err(KMobileError::FileSystemError(format!("App file not found: {}", app_path)).into());
+        return Err(
+            KMobileError::FileSystemError(format!("App file not found: {app_path}")).into(),
+        );
     }
-    
+
     // Check file extension
     if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
         match extension.to_lowercase().as_str() {
             "apk" | "aab" | "app" | "ipa" => Ok(()),
-            _ => Err(KMobileError::InvalidInput(format!("Invalid app file extension: {}", extension)).into()),
+            _ => Err(KMobileError::InvalidInput(format!(
+                "Invalid app file extension: {extension}"
+            ))
+            .into()),
         }
     } else {
         Err(KMobileError::InvalidInput("App file has no extension".to_string()).into())
@@ -207,20 +215,27 @@ pub fn generate_device_id() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    format!("kmobile-{}", timestamp)
+    format!("kmobile-{timestamp}")
 }
 
 pub fn parse_coordinates(coordinate_str: &str) -> Result<(i32, i32)> {
     let parts: Vec<&str> = coordinate_str.split(',').collect();
     if parts.len() != 2 {
-        return Err(KMobileError::InvalidInput("Invalid coordinate format. Expected 'x,y'".to_string()).into());
+        return Err(KMobileError::InvalidInput(
+            "Invalid coordinate format. Expected 'x,y'".to_string(),
+        )
+        .into());
     }
-    
-    let x = parts[0].trim().parse::<i32>()
+
+    let x = parts[0]
+        .trim()
+        .parse::<i32>()
         .map_err(|_| KMobileError::InvalidInput("Invalid x coordinate".to_string()))?;
-    let y = parts[1].trim().parse::<i32>()
+    let y = parts[1]
+        .trim()
+        .parse::<i32>()
         .map_err(|_| KMobileError::InvalidInput("Invalid y coordinate".to_string()))?;
-    
+
     Ok((x, y))
 }
 
@@ -229,26 +244,30 @@ pub fn format_duration(duration: std::time::Duration) -> String {
     let hours = total_seconds / 3600;
     let minutes = (total_seconds % 3600) / 60;
     let seconds = total_seconds % 60;
-    
+
     if hours > 0 {
-        format!("{}h {}m {}s", hours, minutes, seconds)
+        format!("{hours}h {minutes}m {seconds}s")
     } else if minutes > 0 {
-        format!("{}m {}s", minutes, seconds)
+        format!("{minutes}m {seconds}s")
     } else {
-        format!("{}s", seconds)
+        format!("{seconds}s")
     }
 }
 
 pub fn create_backup_file(file_path: &str) -> Result<String> {
     let path = Path::new(file_path);
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-    
+
     let backup_path = if let Some(parent) = path.parent() {
-        parent.join(format!("{}.{}.backup", path.file_name().unwrap().to_string_lossy(), timestamp))
+        parent.join(format!(
+            "{}.{}.backup",
+            path.file_name().unwrap().to_string_lossy(),
+            timestamp
+        ))
     } else {
-        Path::new(&format!("{}.{}.backup", file_path, timestamp)).to_path_buf()
+        Path::new(&format!("{file_path}.{timestamp}.backup")).to_path_buf()
     };
-    
+
     fs::copy(file_path, &backup_path)?;
     Ok(backup_path.to_string_lossy().to_string())
 }
@@ -262,20 +281,17 @@ pub fn cleanup_temp_files(temp_dir: &str) -> Result<()> {
 }
 
 pub fn get_available_port() -> Result<u16> {
-    use std::net::{TcpListener, SocketAddr};
-    
+    use std::net::TcpListener;
+
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let addr = listener.local_addr()?;
     Ok(addr.port())
 }
 
 pub fn is_port_available(port: u16) -> bool {
-    use std::net::{TcpListener, SocketAddr};
-    
-    match TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], port))) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    use std::net::{SocketAddr, TcpListener};
+
+    TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], port))).is_ok()
 }
 
 pub fn sanitize_filename(filename: &str) -> String {
@@ -307,29 +323,34 @@ where
 {
     let mut delay = initial_delay;
     let mut last_error = None;
-    
+
     for attempt in 0..=max_retries {
         match operation() {
             Ok(result) => return Ok(result),
             Err(e) => {
                 last_error = Some(e);
-                
+
                 if attempt < max_retries {
                     debug!("Attempt {} failed, retrying in {:?}", attempt + 1, delay);
                     std::thread::sleep(delay);
-                    delay = delay * 2; // Exponential backoff
+                    delay *= 2; // Exponential backoff
                 }
             }
         }
     }
-    
-    Err(KMobileError::Unknown(format!("Operation failed after {} attempts: {}", max_retries + 1, last_error.unwrap())).into())
+
+    Err(KMobileError::Unknown(format!(
+        "Operation failed after {} attempts: {}",
+        max_retries + 1,
+        last_error.unwrap()
+    ))
+    .into())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_coordinates() {
         assert_eq!(parse_coordinates("100,200").unwrap(), (100, 200));
@@ -337,20 +358,26 @@ mod tests {
         assert!(parse_coordinates("invalid").is_err());
         assert!(parse_coordinates("100").is_err());
     }
-    
+
     #[test]
     fn test_format_duration() {
         assert_eq!(format_duration(std::time::Duration::from_secs(30)), "30s");
-        assert_eq!(format_duration(std::time::Duration::from_secs(90)), "1m 30s");
-        assert_eq!(format_duration(std::time::Duration::from_secs(3661)), "1h 1m 1s");
+        assert_eq!(
+            format_duration(std::time::Duration::from_secs(90)),
+            "1m 30s"
+        );
+        assert_eq!(
+            format_duration(std::time::Duration::from_secs(3661)),
+            "1h 1m 1s"
+        );
     }
-    
+
     #[test]
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("test:file<name>"), "test_file_name_");
         assert_eq!(sanitize_filename("normal_name.txt"), "normal_name.txt");
     }
-    
+
     #[test]
     fn test_truncate_string() {
         assert_eq!(truncate_string("short", 10), "short");

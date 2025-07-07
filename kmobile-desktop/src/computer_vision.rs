@@ -1,9 +1,8 @@
 use anyhow::Result;
-use image::{ImageBuffer, RgbImage};
 // use opencv::{core, imgproc, objdetect, prelude::*};  // Optional dependency
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Revolutionary Computer Vision System for Mobile Screen Understanding
 /// Provides AI agents with visual understanding of mobile device screens
@@ -11,24 +10,24 @@ use tracing::{debug, info, warn};
 pub struct ScreenAnalyzer {
     // OpenCV components (placeholder when OpenCV not available)
     // face_detector: objdetect::CascadeClassifier,
-    
+
     // OCR engine
     ocr_engine: OcrEngine,
-    
+
     // UI element detector
     ui_detector: UiElementDetector,
-    
+
     // Scene understanding
     scene_analyzer: SceneAnalyzer,
-    
+
     // Current screen state
     current_frame: Option<Vec<u8>>,
     detected_elements: Vec<UiElement>,
     screen_text: Vec<TextRegion>,
-    
+
     // Analysis history
     frame_history: Vec<ScreenFrame>,
-    
+
     // Configuration
     config: VisionConfig,
 }
@@ -129,7 +128,7 @@ struct ContextAnalyzer;
 impl ScreenAnalyzer {
     pub async fn new() -> Result<Self> {
         info!("👁️ Initializing Computer Vision System for screen analysis");
-        
+
         // Initialize face detector (placeholder when OpenCV not available)
         // let face_detector = objdetect::CascadeClassifier::new(
         //     &opencv::objdetect::CASCADE_FRONTALFACE_ALT_XML
@@ -137,18 +136,18 @@ impl ScreenAnalyzer {
         //     warn!("Failed to load face detection model");
         //     objdetect::CascadeClassifier::default().unwrap()
         // });
-        
+
         // Initialize OCR engine
         let ocr_engine = OcrEngine::new();
-        
+
         // Initialize UI element detector
         let ui_detector = UiElementDetector::new();
-        
+
         // Initialize scene analyzer
         let scene_analyzer = SceneAnalyzer::new();
-        
+
         info!("✅ Computer Vision System initialized successfully");
-        
+
         Ok(Self {
             // face_detector,
             ocr_engine,
@@ -161,77 +160,90 @@ impl ScreenAnalyzer {
             config: VisionConfig::default(),
         })
     }
-    
+
     pub async fn analyze_screen(&mut self, image_data: &[u8]) -> Result<ScreenAnalysisResult> {
         debug!("🔍 Analyzing screen image ({} bytes)", image_data.len());
-        
-        // Store image data  
+
+        // Store image data
         self.current_frame = Some(image_data.to_vec());
-        
+
         let mut analysis_result = ScreenAnalysisResult::new();
-        
+
         // Detect UI elements (placeholder implementation)
         if self.config.enable_ui_detection {
             self.detected_elements = self.detect_ui_elements_simple(image_data).await?;
             analysis_result.ui_elements = self.detected_elements.clone();
         }
-        
+
         // Perform OCR (placeholder implementation)
         if self.config.enable_ocr {
             self.screen_text = self.extract_text_simple(image_data).await?;
             analysis_result.text_regions = self.screen_text.clone();
         }
-        
+
         // Detect faces (placeholder implementation)
         if self.config.enable_face_detection {
             let faces = self.detect_faces_simple(image_data).await?;
             analysis_result.faces_detected = !faces.is_empty();
             analysis_result.face_count = faces.len();
         }
-        
+
         // Analyze scene context
         let scene_context = self.analyze_scene_context_simple(image_data).await?;
         analysis_result.scene_context = scene_context;
-        
+
         // Store frame in history
         self.store_frame_in_history(&analysis_result).await?;
-        
-        info!("✅ Screen analysis complete: {} UI elements, {} text regions", 
-              analysis_result.ui_elements.len(), analysis_result.text_regions.len());
-        
+
+        info!(
+            "✅ Screen analysis complete: {} UI elements, {} text regions",
+            analysis_result.ui_elements.len(),
+            analysis_result.text_regions.len()
+        );
+
         Ok(analysis_result)
     }
-    
+
     async fn detect_ui_elements_simple(&self, _image_data: &[u8]) -> Result<Vec<UiElement>> {
         debug!("🎯 Detecting UI elements");
-        
+
         // Placeholder implementation - would use computer vision techniques
         let mut elements = Vec::new();
-        
+
         // Simulate some detected UI elements
         elements.push(UiElement {
             element_type: UiElementType::Button,
-            bounds: Rectangle { x: 100, y: 200, width: 150, height: 50 },
+            bounds: Rectangle {
+                x: 100,
+                y: 200,
+                width: 150,
+                height: 50,
+            },
             text: Some("Login".to_string()),
             clickable: true,
             enabled: true,
             confidence: 0.9,
             attributes: HashMap::new(),
         });
-        
+
         elements.push(UiElement {
             element_type: UiElementType::TextField,
-            bounds: Rectangle { x: 50, y: 100, width: 200, height: 40 },
+            bounds: Rectangle {
+                x: 50,
+                y: 100,
+                width: 200,
+                height: 40,
+            },
             text: Some("Username".to_string()),
             clickable: true,
             enabled: true,
             confidence: 0.8,
             attributes: HashMap::new(),
         });
-        
+
         Ok(elements)
     }
-    
+
     // Placeholder methods for OpenCV-based detection (commented out for compilation)
     /*
     async fn detect_buttons(&self, mat: &Mat) -> Result<Vec<UiElement>> {
@@ -239,37 +251,42 @@ impl ScreenAnalyzer {
         Ok(vec![])
     }
     */
-    
+
     async fn extract_text_simple(&self, _image_data: &[u8]) -> Result<Vec<TextRegion>> {
         debug!("📝 Extracting text from screen");
-        
+
         // Placeholder OCR implementation
         // In production, would integrate with Tesseract or cloud OCR services
-        
+
         let mut text_regions = Vec::new();
-        
+
         // Simulate text detection
         text_regions.push(TextRegion {
             text: "[OCR text would appear here]".to_string(),
-            bounds: Rectangle { x: 100, y: 100, width: 200, height: 30 },
+            bounds: Rectangle {
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 30,
+            },
             confidence: 0.9,
             language: Some("en".to_string()),
             font_size: Some(16.0),
         });
-        
+
         Ok(text_regions)
     }
-    
+
     async fn detect_faces_simple(&self, _image_data: &[u8]) -> Result<Vec<Rectangle>> {
         // Placeholder face detection - would use OpenCV or ML models
         debug!("👤 Face detection not implemented in placeholder mode");
         Ok(vec![])
     }
-    
+
     async fn analyze_scene_context_simple(&self, _image_data: &[u8]) -> Result<SceneContext> {
         // Analyze the overall context of the screen
         // What app is running? What's the user doing?
-        
+
         Ok(SceneContext {
             app_name: Some("Unknown App".to_string()),
             screen_type: ScreenType::Main,
@@ -277,47 +294,47 @@ impl ScreenAnalyzer {
             complexity_score: 0.5,
         })
     }
-    
+
     // Placeholder for image conversion (would convert to OpenCV Mat when available)
     /*
     fn image_data_to_mat(&self, image_data: &[u8]) -> Result<Mat> {
         // Convert image bytes to OpenCV Mat
         let img = image::load_from_memory(image_data)?;
         let rgb_img = img.to_rgb8();
-        
+
         let (width, height) = rgb_img.dimensions();
         let mat = Mat::from_slice_2d(rgb_img.as_raw(), height as i32, width as i32)?;
-        
+
         Ok(mat)
     }
     */
-    
+
     async fn store_frame_in_history(&mut self, analysis: &ScreenAnalysisResult) -> Result<()> {
         let frame = ScreenFrame {
             timestamp: chrono::Utc::now(),
             elements: analysis.ui_elements.clone(),
             text_regions: analysis.text_regions.clone(),
-            screen_hash: self.calculate_screen_hash(&analysis)?,
-            changes_detected: self.detect_changes_from_previous_frame(&analysis),
+            screen_hash: self.calculate_screen_hash(analysis)?,
+            changes_detected: self.detect_changes_from_previous_frame(analysis),
         };
-        
+
         self.frame_history.push(frame);
-        
+
         // Keep only recent frames
         if self.frame_history.len() > self.config.frame_history_size {
             self.frame_history.remove(0);
         }
-        
+
         Ok(())
     }
-    
+
     fn calculate_screen_hash(&self, analysis: &ScreenAnalysisResult) -> Result<String> {
         // Create a hash of the screen content for change detection
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
-        
+
         // Hash UI elements
         for element in &analysis.ui_elements {
             element.bounds.x.hash(&mut hasher);
@@ -325,44 +342,47 @@ impl ScreenAnalyzer {
             element.bounds.width.hash(&mut hasher);
             element.bounds.height.hash(&mut hasher);
         }
-        
+
         // Hash text content
         for text in &analysis.text_regions {
             text.text.hash(&mut hasher);
         }
-        
+
         Ok(format!("{:x}", hasher.finish()))
     }
-    
+
     fn detect_changes_from_previous_frame(&self, _analysis: &ScreenAnalysisResult) -> bool {
         // Compare with previous frame to detect significant changes
         // This helps agents understand when the screen has updated
-        
+
         if self.frame_history.is_empty() {
             return true; // First frame is always a change
         }
-        
+
         // Simplified change detection
         true // For now, assume changes always occur
     }
-    
+
     pub fn get_clickable_elements(&self) -> Vec<&UiElement> {
-        self.detected_elements.iter()
+        self.detected_elements
+            .iter()
             .filter(|element| element.clickable)
             .collect()
     }
-    
+
     pub fn find_element_at_position(&self, x: i32, y: i32) -> Option<&UiElement> {
-        self.detected_elements.iter()
-            .find(|element| {
-                let bounds = &element.bounds;
-                x >= bounds.x && x < bounds.x + bounds.width &&
-                y >= bounds.y && y < bounds.y + bounds.height
-            })
+        self.detected_elements.iter().find(|element| {
+            let bounds = &element.bounds;
+            x >= bounds.x
+                && x < bounds.x + bounds.width
+                && y >= bounds.y
+                && y < bounds.y + bounds.height
+        })
     }
-    
+
     pub fn search_text(&self, query: &str) -> Vec<&TextRegion> {
-        self.screen_text.iter()
+        self.screen_text
+            .iter()
             .filter(|region| region.text.to_lowercase().contains(&query.to_lowercase()))
             .collect()
     }

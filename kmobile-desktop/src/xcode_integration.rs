@@ -5,14 +5,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
-use uuid::Uuid;
+use tracing::{error, info, warn};
 
 use crate::device_bridge::DeviceBridge;
 use crate::hardware_emulator::HardwareEmulator;
 
 /// Revolutionary Xcode Integration System
-/// 
+///
 /// Provides comprehensive iOS development and testing capabilities including:
 /// - iOS Simulator management and control
 /// - Physical device integration
@@ -27,27 +26,27 @@ pub struct XcodeIntegration {
     simctl_path: Option<PathBuf>,
     xcodebuild_path: Option<PathBuf>,
     ios_deploy_path: Option<PathBuf>,
-    
+
     // Simulator management
     simulator_manager: SimulatorManager,
-    
+
     // Device management
     device_manager: DeviceManager,
-    
+
     // Project management
     project_manager: ProjectManager,
-    
+
     // Hardware simulation
     hardware_simulator: HardwareSimulator,
-    
+
     // Advanced features
     testflight_manager: TestFlightManager,
     provisioning_manager: ProvisioningManager,
-    
+
     // Integration with existing components
     device_bridge: Arc<RwLock<DeviceBridge>>,
     hardware_emulator: Arc<RwLock<HardwareEmulator>>,
-    
+
     // Configuration
     config: XcodeConfig,
 }
@@ -274,6 +273,7 @@ pub enum LocationScenario {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AccessibilitySettings {
     pub voice_over_enabled: bool,
     pub zoom_enabled: bool,
@@ -415,18 +415,18 @@ impl XcodeIntegration {
         config: XcodeConfig,
     ) -> Result<Self> {
         info!("🍎 Initializing Xcode Integration System");
-        
+
         // Detect Xcode installation
         let xcode_path = Self::detect_xcode_path()?;
         let simctl_path = Self::detect_simctl_path()?;
         let xcodebuild_path = Self::detect_xcodebuild_path()?;
         let ios_deploy_path = Self::detect_ios_deploy_path();
-        
+
         info!("🔍 Xcode detected at: {:?}", xcode_path);
         info!("🔍 simctl found: {:?}", simctl_path.is_some());
         info!("🔍 xcodebuild found: {:?}", xcodebuild_path.is_some());
         info!("🔍 ios-deploy found: {:?}", ios_deploy_path.is_some());
-        
+
         let mut integration = Self {
             xcode_path,
             simctl_path,
@@ -442,52 +442,54 @@ impl XcodeIntegration {
             hardware_emulator,
             config,
         };
-        
+
         // Initialize components
         integration.initialize_components().await?;
-        
+
         info!("✅ Xcode Integration System initialized successfully");
         Ok(integration)
     }
-    
+
     async fn initialize_components(&mut self) -> Result<()> {
         // Load available simulators
         self.refresh_simulators().await?;
-        
+
         // Detect connected devices
         self.refresh_devices().await?;
-        
+
         // Load provisioning profiles
         self.load_provisioning_profiles().await?;
-        
+
         // Start device monitoring if enabled
         if self.config.enable_debug_logging {
             self.start_device_monitoring().await?;
         }
-        
+
         Ok(())
     }
-    
+
     // ========================================================================
     // iOS Simulator Management
     // ========================================================================
-    
+
     /// List all available iOS simulators
     pub async fn list_simulators(&self) -> Result<Vec<SimulatorInfo>> {
         info!("📱 Listing available iOS simulators");
-        
+
         let output = Command::new("xcrun")
             .args(["simctl", "list", "devices", "--json"])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to list simulators: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to list simulators: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
         let mut simulators = Vec::new();
-        
+
         if let Some(devices) = json["devices"].as_object() {
             for (runtime, device_list) in devices {
                 if let Some(devices) = device_list.as_array() {
@@ -495,7 +497,10 @@ impl XcodeIntegration {
                         let simulator = SimulatorInfo {
                             udid: device["udid"].as_str().unwrap_or("").to_string(),
                             name: device["name"].as_str().unwrap_or("").to_string(),
-                            device_type: device["deviceTypeIdentifier"].as_str().unwrap_or("").to_string(),
+                            device_type: device["deviceTypeIdentifier"]
+                                .as_str()
+                                .unwrap_or("")
+                                .to_string(),
                             runtime: runtime.clone(),
                             state: match device["state"].as_str() {
                                 Some("Booted") => SimulatorState::Booted,
@@ -514,15 +519,15 @@ impl XcodeIntegration {
                 }
             }
         }
-        
+
         info!("📱 Found {} simulators", simulators.len());
         Ok(simulators)
     }
-    
+
     /// Boot a specific iOS simulator
     pub async fn boot_simulator(&mut self, udid: &str) -> Result<()> {
         info!("🚀 Booting iOS simulator: {}", udid);
-        
+
         // Check if already booted
         if let Some(simulator) = self.simulator_manager.available_simulators.get(udid) {
             if matches!(simulator.state, SimulatorState::Booted) {
@@ -530,135 +535,160 @@ impl XcodeIntegration {
                 return Ok(());
             }
         }
-        
+
         let output = Command::new("xcrun")
             .args(["simctl", "boot", udid])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to boot simulator {}: {}", 
-                udid, String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to boot simulator {}: {}",
+                udid,
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         // Wait for boot completion
         self.wait_for_simulator_boot(udid).await?;
-        
+
         // Connect to device bridge
         let mut device_bridge = self.device_bridge.write().await;
         device_bridge.connect(udid).await?;
-        
+
         // Connect hardware emulator
         let mut hardware_emulator = self.hardware_emulator.write().await;
         hardware_emulator.attach_to_device(udid).await?;
-        
+
         info!("✅ Simulator {} booted successfully", udid);
         Ok(())
     }
-    
+
     /// Shutdown a specific iOS simulator
     pub async fn shutdown_simulator(&mut self, udid: &str) -> Result<()> {
         info!("🛑 Shutting down iOS simulator: {}", udid);
-        
+
         let output = Command::new("xcrun")
             .args(["simctl", "shutdown", udid])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to shutdown simulator {}: {}", 
-                udid, String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to shutdown simulator {}: {}",
+                udid,
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         // Remove from active simulators
         self.simulator_manager.active_simulators.remove(udid);
-        
+
         info!("✅ Simulator {} shutdown successfully", udid);
         Ok(())
     }
-    
+
     /// Install an app on a simulator
     pub async fn install_app_on_simulator(&mut self, udid: &str, app_path: &Path) -> Result<()> {
         info!("📦 Installing app on simulator {}: {:?}", udid, app_path);
-        
+
         let output = Command::new("xcrun")
-            .args(["simctl", "install", udid, app_path.to_string_lossy().as_ref()])
+            .args([
+                "simctl",
+                "install",
+                udid,
+                app_path.to_string_lossy().as_ref(),
+            ])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to install app on simulator {}: {}", 
-                udid, String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to install app on simulator {}: {}",
+                udid,
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         // Update app list
         self.refresh_simulator_apps(udid).await?;
-        
+
         info!("✅ App installed successfully on simulator {}", udid);
         Ok(())
     }
-    
+
     /// Uninstall an app from a simulator
-    pub async fn uninstall_app_from_simulator(&mut self, udid: &str, bundle_id: &str) -> Result<()> {
+    pub async fn uninstall_app_from_simulator(
+        &mut self,
+        udid: &str,
+        bundle_id: &str,
+    ) -> Result<()> {
         info!("🗑️ Uninstalling app {} from simulator {}", bundle_id, udid);
-        
+
         let output = Command::new("xcrun")
             .args(["simctl", "uninstall", udid, bundle_id])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to uninstall app {} from simulator {}: {}", 
-                bundle_id, udid, String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to uninstall app {} from simulator {}: {}",
+                bundle_id,
+                udid,
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         // Update app list
         self.refresh_simulator_apps(udid).await?;
-        
+
         info!("✅ App {} uninstalled from simulator {}", bundle_id, udid);
         Ok(())
     }
-    
+
     /// Reset simulator data
     pub async fn reset_simulator(&mut self, udid: &str) -> Result<()> {
         info!("🔄 Resetting simulator data: {}", udid);
-        
+
         // Shutdown first if running
         if let Some(simulator) = self.simulator_manager.available_simulators.get(udid) {
             if matches!(simulator.state, SimulatorState::Booted) {
                 self.shutdown_simulator(udid).await?;
             }
         }
-        
+
         let output = Command::new("xcrun")
             .args(["simctl", "erase", udid])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to reset simulator {}: {}", 
-                udid, String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to reset simulator {}: {}",
+                udid,
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         info!("✅ Simulator {} reset successfully", udid);
         Ok(())
     }
-    
+
     // ========================================================================
     // Device Control
     // ========================================================================
-    
+
     /// Detect connected iOS devices
     pub async fn detect_connected_devices(&mut self) -> Result<Vec<PhysicalDevice>> {
         info!("🔍 Detecting connected iOS devices");
-        
+
         let output = Command::new("xcrun")
             .args(["xctrace", "list", "devices"])
             .output()?;
-        
+
         if !output.status.success() {
             warn!("Failed to detect devices via xctrace, trying instruments");
             return self.detect_devices_via_instruments().await;
         }
-        
+
         let output_str = String::from_utf8_lossy(&output.stdout);
         let mut devices = Vec::new();
-        
+
         for line in output_str.lines() {
             if line.contains("(") && line.contains(")") && !line.contains("Simulator") {
                 if let Some(device) = self.parse_device_line(line) {
@@ -666,76 +696,114 @@ impl XcodeIntegration {
                 }
             }
         }
-        
+
         info!("📱 Found {} connected devices", devices.len());
         Ok(devices)
     }
-    
+
     /// Install an app on a physical device
     pub async fn install_app_on_device(&mut self, udid: &str, app_path: &Path) -> Result<()> {
         info!("📦 Installing app on device {}: {:?}", udid, app_path);
-        
+
         if let Some(ios_deploy_path) = &self.ios_deploy_path {
             let output = Command::new(ios_deploy_path)
-                .args(["--id", udid, "--bundle", app_path.to_string_lossy().as_ref()])
+                .args([
+                    "--id",
+                    udid,
+                    "--bundle",
+                    app_path.to_string_lossy().as_ref(),
+                ])
                 .output()?;
-            
+
             if !output.status.success() {
-                return Err(anyhow::anyhow!("Failed to install app on device {}: {}", 
-                    udid, String::from_utf8_lossy(&output.stderr)));
+                return Err(anyhow::anyhow!(
+                    "Failed to install app on device {}: {}",
+                    udid,
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
         } else {
-            return Err(anyhow::anyhow!("ios-deploy not found. Install with: brew install ios-deploy"));
+            return Err(anyhow::anyhow!(
+                "ios-deploy not found. Install with: brew install ios-deploy"
+            ));
         }
-        
+
         info!("✅ App installed successfully on device {}", udid);
         Ok(())
     }
-    
+
     /// Capture device logs
-    pub async fn capture_device_logs(&self, udid: &str, duration_seconds: u64) -> Result<Vec<DeviceLog>> {
+    pub async fn capture_device_logs(
+        &self,
+        udid: &str,
+        duration_seconds: u64,
+    ) -> Result<Vec<DeviceLog>> {
         info!("📝 Capturing device logs for {} seconds", duration_seconds);
-        
+
         let output = Command::new("xcrun")
-            .args(["simctl", "spawn", udid, "log", "stream", "--timeout", &duration_seconds.to_string()])
+            .args([
+                "simctl",
+                "spawn",
+                udid,
+                "log",
+                "stream",
+                "--timeout",
+                &duration_seconds.to_string(),
+            ])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to capture device logs: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to capture device logs: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         let logs = self.parse_device_logs(&String::from_utf8_lossy(&output.stdout));
-        
+
         info!("📝 Captured {} log entries", logs.len());
         Ok(logs)
     }
-    
+
     /// Take screenshot of device
     pub async fn take_device_screenshot(&self, udid: &str, output_path: &Path) -> Result<()> {
         info!("📸 Taking screenshot of device {}", udid);
-        
+
         let output = Command::new("xcrun")
-            .args(["simctl", "io", udid, "screenshot", output_path.to_string_lossy().as_ref()])
+            .args([
+                "simctl",
+                "io",
+                udid,
+                "screenshot",
+                output_path.to_string_lossy().as_ref(),
+            ])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to take screenshot: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to take screenshot: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         info!("✅ Screenshot saved to {:?}", output_path);
         Ok(())
     }
-    
+
     /// Start screen recording
     pub async fn start_screen_recording(&mut self, udid: &str, output_path: &Path) -> Result<()> {
         info!("🎬 Starting screen recording for device {}", udid);
-        
+
         let _output = Command::new("xcrun")
-            .args(["simctl", "io", udid, "recordVideo", output_path.to_string_lossy().as_ref()])
+            .args([
+                "simctl",
+                "io",
+                udid,
+                "recordVideo",
+                output_path.to_string_lossy().as_ref(),
+            ])
             .spawn()?;
-        
+
         // Store recording info
         if let Some(active_sim) = self.simulator_manager.active_simulators.get_mut(udid) {
             active_sim.screen_recorder = Some(ScreenRecorder {
@@ -744,15 +812,15 @@ impl XcodeIntegration {
                 format: RecordingFormat::Mp4,
             });
         }
-        
+
         info!("✅ Screen recording started for device {}", udid);
         Ok(())
     }
-    
+
     // ========================================================================
     // Xcode Project Integration
     // ========================================================================
-    
+
     /// Build and run Xcode project
     pub async fn build_and_run_project(
         &mut self,
@@ -762,31 +830,35 @@ impl XcodeIntegration {
         configuration: BuildConfiguration,
     ) -> Result<BuildResult> {
         info!("🔨 Building and running Xcode project: {:?}", project_path);
-        
+
         let config_str = match configuration {
             BuildConfiguration::Debug => "Debug",
             BuildConfiguration::Release => "Release",
             BuildConfiguration::Custom(ref c) => c,
         };
-        
+
         let start_time = std::time::Instant::now();
-        
+
         let output = Command::new("xcodebuild")
             .current_dir(project_path)
             .args([
-                "-scheme", scheme,
-                "-destination", destination,
-                "-configuration", config_str,
-                "clean", "build"
+                "-scheme",
+                scheme,
+                "-destination",
+                destination,
+                "-configuration",
+                config_str,
+                "clean",
+                "build",
             ])
             .output()?;
-        
+
         let duration = start_time.elapsed();
         let success = output.status.success();
         let output_str = String::from_utf8_lossy(&output.stdout);
-        
+
         let (warnings, errors) = self.parse_build_output(&output_str);
-        
+
         let result = BuildResult {
             success,
             duration,
@@ -795,16 +867,16 @@ impl XcodeIntegration {
             output_path: None, // Would be parsed from build output
             archive_path: None,
         };
-        
+
         if success {
             info!("✅ Build completed successfully in {:?}", duration);
         } else {
             error!("❌ Build failed after {:?}", duration);
         }
-        
+
         Ok(result)
     }
-    
+
     /// Run tests on simulators or devices
     pub async fn run_tests(
         &mut self,
@@ -814,31 +886,27 @@ impl XcodeIntegration {
         test_plan: Option<&str>,
     ) -> Result<TestResult> {
         info!("🧪 Running tests for scheme: {}", scheme);
-        
-        let mut args = vec![
-            "-scheme", scheme,
-            "-destination", destination,
-            "test"
-        ];
-        
+
+        let mut args = vec!["-scheme", scheme, "-destination", destination, "test"];
+
         if let Some(plan) = test_plan {
             args.extend_from_slice(&["-testPlan", plan]);
         }
-        
+
         let start_time = std::time::Instant::now();
-        
+
         let output = Command::new("xcodebuild")
             .current_dir(project_path)
             .args(&args)
             .output()?;
-        
+
         let duration = start_time.elapsed();
         let success = output.status.success();
         let output_str = String::from_utf8_lossy(&output.stdout);
-        
+
         let test_cases = self.parse_test_results(&output_str);
         let coverage = self.parse_coverage_results(&output_str);
-        
+
         let result = TestResult {
             success,
             test_cases,
@@ -846,16 +914,16 @@ impl XcodeIntegration {
             duration,
             device_logs: Vec::new(), // Would be captured separately
         };
-        
+
         if success {
             info!("✅ Tests completed successfully in {:?}", duration);
         } else {
             error!("❌ Tests failed after {:?}", duration);
         }
-        
+
         Ok(result)
     }
-    
+
     /// Archive and export app
     pub async fn archive_and_export(
         &mut self,
@@ -866,61 +934,84 @@ impl XcodeIntegration {
         _export_method: &str,
     ) -> Result<PathBuf> {
         info!("📦 Archiving and exporting app");
-        
+
         // Archive
         let archive_output = Command::new("xcodebuild")
             .current_dir(project_path)
             .args([
-                "-scheme", scheme,
-                "-archivePath", archive_path.to_string_lossy().as_ref(),
-                "archive"
+                "-scheme",
+                scheme,
+                "-archivePath",
+                archive_path.to_string_lossy().as_ref(),
+                "archive",
             ])
             .output()?;
-        
+
         if !archive_output.status.success() {
-            return Err(anyhow::anyhow!("Archive failed: {}", 
-                String::from_utf8_lossy(&archive_output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Archive failed: {}",
+                String::from_utf8_lossy(&archive_output.stderr)
+            ));
         }
-        
+
         // Export
         let export_output = Command::new("xcodebuild")
             .args([
                 "-exportArchive",
-                "-archivePath", archive_path.to_string_lossy().as_ref(),
-                "-exportPath", export_path.to_string_lossy().as_ref(),
-                "-exportOptionsPlist", "ExportOptions.plist"
+                "-archivePath",
+                archive_path.to_string_lossy().as_ref(),
+                "-exportPath",
+                export_path.to_string_lossy().as_ref(),
+                "-exportOptionsPlist",
+                "ExportOptions.plist",
             ])
             .output()?;
-        
+
         if !export_output.status.success() {
-            return Err(anyhow::anyhow!("Export failed: {}", 
-                String::from_utf8_lossy(&export_output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Export failed: {}",
+                String::from_utf8_lossy(&export_output.stderr)
+            ));
         }
-        
+
         info!("✅ App archived and exported successfully");
         Ok(export_path.to_path_buf())
     }
-    
+
     // ========================================================================
     // Hardware Simulation
     // ========================================================================
-    
+
     /// Simulate location on device
-    pub async fn simulate_location(&mut self, udid: &str, latitude: f64, longitude: f64) -> Result<()> {
-        info!("📍 Simulating location on device {}: {}, {}", udid, latitude, longitude);
-        
+    pub async fn simulate_location(
+        &mut self,
+        udid: &str,
+        latitude: f64,
+        longitude: f64,
+    ) -> Result<()> {
+        info!(
+            "📍 Simulating location on device {}: {}, {}",
+            udid, latitude, longitude
+        );
+
         let output = Command::new("xcrun")
             .args([
-                "simctl", "location", udid, "set",
-                &latitude.to_string(), &longitude.to_string()
+                "simctl",
+                "location",
+                udid,
+                "set",
+                &latitude.to_string(),
+                &longitude.to_string(),
             ])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to simulate location: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to simulate location: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         // Update hardware emulator
         let hardware_emulator = self.hardware_emulator.read().await;
         let location_data = serde_json::json!({
@@ -929,302 +1020,363 @@ impl XcodeIntegration {
             "altitude": 0.0,
             "accuracy": 5.0
         });
-        hardware_emulator.simulate_sensor_input(udid, "gps", location_data).await?;
-        
+        hardware_emulator
+            .simulate_sensor_input(udid, "gps", location_data)
+            .await?;
+
         info!("✅ Location simulated successfully");
         Ok(())
     }
-    
+
     /// Toggle hardware keyboard
     pub async fn toggle_hardware_keyboard(&mut self, udid: &str, enabled: bool) -> Result<()> {
-        info!("⌨️ {} hardware keyboard for device {}", 
-            if enabled { "Enabling" } else { "Disabling" }, udid);
-        
+        info!(
+            "⌨️ {} hardware keyboard for device {}",
+            if enabled { "Enabling" } else { "Disabling" },
+            udid
+        );
+
         let output = Command::new("xcrun")
             .args([
-                "simctl", "io", udid, "keyboard",
-                if enabled { "enable" } else { "disable" }
+                "simctl",
+                "io",
+                udid,
+                "keyboard",
+                if enabled { "enable" } else { "disable" },
             ])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to toggle hardware keyboard: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to toggle hardware keyboard: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         self.hardware_simulator.hardware_keyboard_enabled = enabled;
-        info!("✅ Hardware keyboard {} successfully", 
-            if enabled { "enabled" } else { "disabled" });
+        info!(
+            "✅ Hardware keyboard {} successfully",
+            if enabled { "enabled" } else { "disabled" }
+        );
         Ok(())
     }
-    
+
     /// Configure accessibility settings
-    pub async fn configure_accessibility(&mut self, udid: &str, settings: AccessibilitySettings) -> Result<()> {
+    pub async fn configure_accessibility(
+        &mut self,
+        udid: &str,
+        settings: AccessibilitySettings,
+    ) -> Result<()> {
         info!("♿ Configuring accessibility settings for device {}", udid);
-        
+
         // VoiceOver
         if settings.voice_over_enabled {
             let output = Command::new("xcrun")
                 .args(["simctl", "io", udid, "accessibility", "voiceover", "enable"])
                 .output()?;
-            
+
             if !output.status.success() {
-                warn!("Failed to enable VoiceOver: {}", String::from_utf8_lossy(&output.stderr));
+                warn!(
+                    "Failed to enable VoiceOver: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
         }
-        
+
         // Update local settings
         self.hardware_simulator.accessibility_settings = settings;
-        
+
         info!("✅ Accessibility settings configured successfully");
         Ok(())
     }
-    
+
     /// Simulate push notification
-    pub async fn simulate_push_notification(&mut self, udid: &str, notification: PushNotification) -> Result<()> {
+    pub async fn simulate_push_notification(
+        &mut self,
+        udid: &str,
+        notification: PushNotification,
+    ) -> Result<()> {
         info!("📱 Simulating push notification for device {}", udid);
-        
+
         // Create temporary payload file
-        let temp_file = std::env::temp_dir().join(format!("push_notification_{}.json", uuid::Uuid::new_v4()));
-        std::fs::write(&temp_file, serde_json::to_string_pretty(&notification.payload)?)?;
-        
+        let temp_file =
+            std::env::temp_dir().join(format!("push_notification_{}.json", uuid::Uuid::new_v4()));
+        std::fs::write(
+            &temp_file,
+            serde_json::to_string_pretty(&notification.payload)?,
+        )?;
+
         let output = Command::new("xcrun")
             .args([
-                "simctl", "push", udid,
+                "simctl",
+                "push",
+                udid,
                 &notification.bundle_identifier,
-                temp_file.to_string_lossy().as_ref()
+                temp_file.to_string_lossy().as_ref(),
             ])
             .output()?;
-        
+
         // Clean up temp file
         let _ = std::fs::remove_file(&temp_file);
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to simulate push notification: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to simulate push notification: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         info!("✅ Push notification simulated successfully");
         Ok(())
     }
-    
+
     // ========================================================================
     // Advanced Features
     // ========================================================================
-    
+
     /// Upload to TestFlight
     pub async fn upload_to_testflight(&mut self, ipa_path: &Path) -> Result<()> {
         info!("🚀 Uploading to TestFlight: {:?}", ipa_path);
-        
+
         let testflight_manager = &self.testflight_manager;
-        
+
         if let (Some(key_id), Some(issuer_id), Some(_private_key_path)) = (
             &testflight_manager.key_id,
             &testflight_manager.issuer_id,
-            &testflight_manager.private_key_path
+            &testflight_manager.private_key_path,
         ) {
             let output = Command::new("xcrun")
                 .args([
-                    "altool", "--upload-app",
-                    "--type", "ios",
-                    "--file", ipa_path.to_string_lossy().as_ref(),
-                    "--apiKey", key_id,
-                    "--apiIssuer", issuer_id
+                    "altool",
+                    "--upload-app",
+                    "--type",
+                    "ios",
+                    "--file",
+                    ipa_path.to_string_lossy().as_ref(),
+                    "--apiKey",
+                    key_id,
+                    "--apiIssuer",
+                    issuer_id,
                 ])
                 .output()?;
-            
+
             if !output.status.success() {
-                return Err(anyhow::anyhow!("Failed to upload to TestFlight: {}", 
-                    String::from_utf8_lossy(&output.stderr)));
+                return Err(anyhow::anyhow!(
+                    "Failed to upload to TestFlight: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
-            
+
             info!("✅ Successfully uploaded to TestFlight");
         } else {
             return Err(anyhow::anyhow!("TestFlight credentials not configured"));
         }
-        
+
         Ok(())
     }
-    
+
     /// Manage provisioning profiles
     pub async fn install_provisioning_profile(&mut self, profile_path: &Path) -> Result<()> {
         info!("📄 Installing provisioning profile: {:?}", profile_path);
-        
+
         let output = Command::new("security")
             .args(["cms", "-D", "-i", profile_path.to_string_lossy().as_ref()])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to read provisioning profile: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to read provisioning profile: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         // Parse provisioning profile
         let profile_data = String::from_utf8_lossy(&output.stdout);
         let profile = self.parse_provisioning_profile(&profile_data)?;
-        
+
         // Install profile
         let profiles_dir = dirs::home_dir()
             .unwrap_or_default()
             .join("Library/MobileDevice/Provisioning Profiles");
-        
+
         std::fs::create_dir_all(&profiles_dir)?;
-        
+
         let dest_path = profiles_dir.join(format!("{}.mobileprovision", profile.uuid));
         std::fs::copy(profile_path, &dest_path)?;
-        
+
         // Update manager
-        self.provisioning_manager.profiles.insert(profile.uuid.clone(), profile);
-        
+        self.provisioning_manager
+            .profiles
+            .insert(profile.uuid.clone(), profile);
+
         info!("✅ Provisioning profile installed successfully");
         Ok(())
     }
-    
+
     /// Code signing automation
-    pub async fn sign_app(&mut self, app_path: &Path, identity: &str, provisioning_profile: &str) -> Result<()> {
+    pub async fn sign_app(
+        &mut self,
+        app_path: &Path,
+        identity: &str,
+        provisioning_profile: &str,
+    ) -> Result<()> {
         info!("✍️ Signing app: {:?}", app_path);
-        
+
         let output = Command::new("codesign")
             .args([
                 "--force",
-                "--sign", identity,
-                "--entitlements", "Entitlements.plist",
-                "--provisioning-profile", provisioning_profile,
-                app_path.to_string_lossy().as_ref()
+                "--sign",
+                identity,
+                "--entitlements",
+                "Entitlements.plist",
+                "--provisioning-profile",
+                provisioning_profile,
+                app_path.to_string_lossy().as_ref(),
             ])
             .output()?;
-        
+
         if !output.status.success() {
-            return Err(anyhow::anyhow!("Failed to sign app: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+            return Err(anyhow::anyhow!(
+                "Failed to sign app: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
         }
-        
+
         info!("✅ App signed successfully");
         Ok(())
     }
-    
+
     // ========================================================================
     // Utility Methods
     // ========================================================================
-    
+
     async fn refresh_simulators(&mut self) -> Result<()> {
         let simulators = self.list_simulators().await?;
-        
+
         self.simulator_manager.available_simulators.clear();
         for simulator in simulators {
-            self.simulator_manager.available_simulators.insert(simulator.udid.clone(), simulator);
+            self.simulator_manager
+                .available_simulators
+                .insert(simulator.udid.clone(), simulator);
         }
-        
+
         Ok(())
     }
-    
+
     async fn refresh_devices(&mut self) -> Result<()> {
         let devices = self.detect_connected_devices().await?;
-        
+
         self.device_manager.connected_devices.clear();
         for device in devices {
-            self.device_manager.connected_devices.insert(device.udid.clone(), device);
+            self.device_manager
+                .connected_devices
+                .insert(device.udid.clone(), device);
         }
-        
+
         Ok(())
     }
-    
+
     async fn refresh_simulator_apps(&mut self, udid: &str) -> Result<()> {
         let output = Command::new("xcrun")
             .args(["simctl", "listapps", udid])
             .output()?;
-        
+
         if output.status.success() {
             let apps = self.parse_installed_apps(&String::from_utf8_lossy(&output.stdout));
-            
+
             if let Some(active_sim) = self.simulator_manager.active_simulators.get_mut(udid) {
                 active_sim.installed_apps = apps;
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn wait_for_simulator_boot(&self, udid: &str) -> Result<()> {
         let mut attempts = 0;
         let max_attempts = 60; // 60 seconds timeout
-        
+
         while attempts < max_attempts {
             let output = Command::new("xcrun")
                 .args(["simctl", "list", "devices", udid])
                 .output()?;
-            
+
             if output.status.success() {
                 let output_str = String::from_utf8_lossy(&output.stdout);
                 if output_str.contains("Booted") {
                     return Ok(());
                 }
             }
-            
+
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             attempts += 1;
         }
-        
+
         Err(anyhow::anyhow!("Timeout waiting for simulator to boot"))
     }
-    
+
     async fn load_provisioning_profiles(&mut self) -> Result<()> {
         let profiles_dir = dirs::home_dir()
             .unwrap_or_default()
             .join("Library/MobileDevice/Provisioning Profiles");
-        
+
         if !profiles_dir.exists() {
             return Ok(());
         }
-        
+
         for entry in std::fs::read_dir(&profiles_dir)? {
             let entry = entry?;
             let path = entry.path();
-            
-            if path.extension().map_or(false, |ext| ext == "mobileprovision") {
+
+            if path
+                .extension()
+                .is_some_and(|ext| ext == "mobileprovision")
+            {
                 if let Ok(profile) = self.load_provisioning_profile(&path).await {
-                    self.provisioning_manager.profiles.insert(profile.uuid.clone(), profile);
+                    self.provisioning_manager
+                        .profiles
+                        .insert(profile.uuid.clone(), profile);
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn load_provisioning_profile(&self, path: &Path) -> Result<ProvisioningProfile> {
         let output = Command::new("security")
             .args(["cms", "-D", "-i", path.to_string_lossy().as_ref()])
             .output()?;
-        
+
         if !output.status.success() {
             return Err(anyhow::anyhow!("Failed to read provisioning profile"));
         }
-        
+
         let profile_data = String::from_utf8_lossy(&output.stdout);
         self.parse_provisioning_profile(&profile_data)
     }
-    
+
     async fn start_device_monitoring(&mut self) -> Result<()> {
         info!("👁️ Starting device monitoring");
-        
+
         // This would start background tasks to monitor device connections
         // and log events
-        
+
         Ok(())
     }
-    
+
     async fn detect_devices_via_instruments(&self) -> Result<Vec<PhysicalDevice>> {
         let output = Command::new("instruments")
             .args(["-s", "devices"])
             .output()?;
-        
+
         if !output.status.success() {
             return Ok(Vec::new());
         }
-        
+
         let output_str = String::from_utf8_lossy(&output.stdout);
         let mut devices = Vec::new();
-        
+
         for line in output_str.lines() {
             if line.contains("(") && line.contains(")") && !line.contains("Simulator") {
                 if let Some(device) = self.parse_device_line(line) {
@@ -1232,24 +1384,24 @@ impl XcodeIntegration {
                 }
             }
         }
-        
+
         Ok(devices)
     }
-    
+
     // ========================================================================
     // Parsing Methods
     // ========================================================================
-    
+
     fn parse_device_line(&self, line: &str) -> Option<PhysicalDevice> {
         // Parse device info from command output
         // This would be implemented based on the actual output format
-        
+
         // Example: "iPhone 12 Pro (15.0) [UDID]"
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 3 {
             return None;
         }
-        
+
         Some(PhysicalDevice {
             udid: "example-udid".to_string(),
             name: "iPhone".to_string(),
@@ -1261,23 +1413,23 @@ impl XcodeIntegration {
             device_logs: Vec::new(),
         })
     }
-    
+
     fn parse_device_logs(&self, log_output: &str) -> Vec<DeviceLog> {
         let mut logs = Vec::new();
-        
+
         for line in log_output.lines() {
             if let Some(log) = self.parse_log_line(line) {
                 logs.push(log);
             }
         }
-        
+
         logs
     }
-    
+
     fn parse_log_line(&self, line: &str) -> Option<DeviceLog> {
         // Parse individual log line
         // This would be implemented based on the actual log format
-        
+
         Some(DeviceLog {
             timestamp: chrono::Utc::now(),
             level: LogLevel::Info,
@@ -1286,11 +1438,11 @@ impl XcodeIntegration {
             process: "Unknown".to_string(),
         })
     }
-    
+
     fn parse_build_output(&self, output: &str) -> (Vec<String>, Vec<String>) {
         let mut warnings = Vec::new();
         let mut errors = Vec::new();
-        
+
         for line in output.lines() {
             if line.contains("warning:") {
                 warnings.push(line.to_string());
@@ -1298,13 +1450,13 @@ impl XcodeIntegration {
                 errors.push(line.to_string());
             }
         }
-        
+
         (warnings, errors)
     }
-    
+
     fn parse_test_results(&self, output: &str) -> Vec<TestCase> {
         let mut test_cases = Vec::new();
-        
+
         for line in output.lines() {
             if line.contains("Test Case") {
                 // Parse test case result
@@ -1319,14 +1471,14 @@ impl XcodeIntegration {
                 test_cases.push(test_case);
             }
         }
-        
+
         test_cases
     }
-    
+
     fn parse_coverage_results(&self, _output: &str) -> Option<TestCoverage> {
         // Parse coverage information from test output
         // This would be implemented based on the actual output format
-        
+
         Some(TestCoverage {
             line_coverage: 85.0,
             function_coverage: 90.0,
@@ -1334,20 +1486,20 @@ impl XcodeIntegration {
             files: Vec::new(),
         })
     }
-    
+
     fn parse_installed_apps(&self, _output: &str) -> HashMap<String, AppInfo> {
-        let apps = HashMap::new();
         
+
         // Parse installed apps from simctl output
         // This would be implemented based on the actual output format
-        
-        apps
+
+        HashMap::new()
     }
-    
+
     fn parse_provisioning_profile(&self, profile_data: &str) -> Result<ProvisioningProfile> {
         // Parse provisioning profile plist data
         // This would be implemented to parse the actual plist format
-        
+
         Ok(ProvisioningProfile {
             uuid: uuid::Uuid::new_v4().to_string(),
             name: "Example Profile".to_string(),
@@ -1359,16 +1511,16 @@ impl XcodeIntegration {
             file_path: PathBuf::new(),
         })
     }
-    
+
     // ========================================================================
     // Detection Methods
     // ========================================================================
-    
+
     fn detect_xcode_path() -> Result<Option<PathBuf>> {
         let output = Command::new("xcode-select")
             .args(["--print-path"])
             .output()?;
-        
+
         if output.status.success() {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             Ok(Some(PathBuf::from(path)))
@@ -1376,29 +1528,29 @@ impl XcodeIntegration {
             Ok(None)
         }
     }
-    
+
     fn detect_simctl_path() -> Result<Option<PathBuf>> {
         match which::which("simctl") {
             Ok(path) => Ok(Some(path)),
             Err(_) => Ok(None),
         }
     }
-    
+
     fn detect_xcodebuild_path() -> Result<Option<PathBuf>> {
         match which::which("xcodebuild") {
             Ok(path) => Ok(Some(path)),
             Err(_) => Ok(None),
         }
     }
-    
+
     fn detect_ios_deploy_path() -> Option<PathBuf> {
         which::which("ios-deploy").ok()
     }
-    
+
     // ========================================================================
     // Public API Methods
     // ========================================================================
-    
+
     /// Get system status
     pub async fn get_system_status(&self) -> Result<XcodeSystemStatus> {
         Ok(XcodeSystemStatus {
@@ -1411,7 +1563,7 @@ impl XcodeIntegration {
             testflight_configured: self.testflight_manager.app_store_connect_key.is_some(),
         })
     }
-    
+
     /// Get comprehensive device information
     pub async fn get_device_info(&self, udid: &str) -> Result<DeviceInfo> {
         if let Some(simulator) = self.simulator_manager.available_simulators.get(udid) {
@@ -1422,18 +1574,18 @@ impl XcodeIntegration {
             Err(anyhow::anyhow!("Device not found: {}", udid))
         }
     }
-    
+
     /// Execute complex workflow
     pub async fn execute_workflow(&mut self, workflow: XcodeWorkflow) -> Result<WorkflowResult> {
         info!("🔄 Executing Xcode workflow: {:?}", workflow.name);
-        
+
         let mut results = Vec::new();
-        
+
         for step in workflow.steps {
             let result = self.execute_workflow_step(step).await?;
             results.push(result);
         }
-        
+
         Ok(WorkflowResult {
             name: workflow.name,
             success: results.iter().all(|r| r.success),
@@ -1441,7 +1593,7 @@ impl XcodeIntegration {
             duration: std::time::Duration::from_secs(0), // Would be calculated
         })
     }
-    
+
     async fn execute_workflow_step(&mut self, step: WorkflowStep) -> Result<StepResult> {
         match step {
             WorkflowStep::BootSimulator { udid } => {
@@ -1449,18 +1601,24 @@ impl XcodeIntegration {
                 Ok(StepResult {
                     step_name: "BootSimulator".to_string(),
                     success: true,
-                    message: format!("Simulator {} booted successfully", udid),
+                    message: format!("Simulator {udid} booted successfully"),
                     duration: std::time::Duration::from_secs(10),
                 })
             }
-            WorkflowStep::BuildProject { project_path, scheme, configuration } => {
-                let result = self.build_and_run_project(
-                    &project_path,
-                    &scheme,
-                    "generic/platform=iOS Simulator",
-                    configuration,
-                ).await?;
-                
+            WorkflowStep::BuildProject {
+                project_path,
+                scheme,
+                configuration,
+            } => {
+                let result = self
+                    .build_and_run_project(
+                        &project_path,
+                        &scheme,
+                        "generic/platform=iOS Simulator",
+                        configuration,
+                    )
+                    .await?;
+
                 Ok(StepResult {
                     step_name: "BuildProject".to_string(),
                     success: result.success,
@@ -1472,14 +1630,26 @@ impl XcodeIntegration {
                     duration: result.duration,
                 })
             }
-            WorkflowStep::RunTests { project_path, scheme, destination } => {
-                let result = self.run_tests(&project_path, &scheme, &destination, None).await?;
-                
+            WorkflowStep::RunTests {
+                project_path,
+                scheme,
+                destination,
+            } => {
+                let result = self
+                    .run_tests(&project_path, &scheme, &destination, None)
+                    .await?;
+
                 Ok(StepResult {
                     step_name: "RunTests".to_string(),
                     success: result.success,
-                    message: format!("Tests completed: {} passed", 
-                        result.test_cases.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count()),
+                    message: format!(
+                        "Tests completed: {} passed",
+                        result
+                            .test_cases
+                            .iter()
+                            .filter(|t| matches!(t.status, TestStatus::Passed))
+                            .count()
+                    ),
                     duration: result.duration,
                 })
             }
@@ -1488,7 +1658,7 @@ impl XcodeIntegration {
                 Ok(StepResult {
                     step_name: "InstallApp".to_string(),
                     success: true,
-                    message: format!("App installed on {}", udid),
+                    message: format!("App installed on {udid}"),
                     duration: std::time::Duration::from_secs(5),
                 })
             }
@@ -1509,10 +1679,23 @@ pub struct XcodeWorkflow {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WorkflowStep {
-    BootSimulator { udid: String },
-    BuildProject { project_path: PathBuf, scheme: String, configuration: BuildConfiguration },
-    RunTests { project_path: PathBuf, scheme: String, destination: String },
-    InstallApp { udid: String, app_path: PathBuf },
+    BootSimulator {
+        udid: String,
+    },
+    BuildProject {
+        project_path: PathBuf,
+        scheme: String,
+        configuration: BuildConfiguration,
+    },
+    RunTests {
+        project_path: PathBuf,
+        scheme: String,
+        destination: String,
+    },
+    InstallApp {
+        udid: String,
+        app_path: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1568,18 +1751,6 @@ impl Default for XcodeConfig {
     }
 }
 
-impl Default for AccessibilitySettings {
-    fn default() -> Self {
-        Self {
-            voice_over_enabled: false,
-            zoom_enabled: false,
-            large_text_enabled: false,
-            reduce_motion_enabled: false,
-            button_shapes_enabled: false,
-            grayscale_enabled: false,
-        }
-    }
-}
 
 // ============================================================================
 // Component Constructors

@@ -11,4 +11,4 @@ pub mod utils;
 pub use cli::KMobileCli;
 pub use config::Config;
 pub use error::{KMobileError, Result};
-pub use mcp::{McpServer, McpRequest, McpResponse};
+pub use mcp::{McpRequest, McpResponse, McpServer};

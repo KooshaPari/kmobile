@@ -1,7 +1,7 @@
 use eframe::egui;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::audio::AudioProcessor;
 use crate::computer_vision::ScreenAnalyzer;
@@ -78,10 +78,10 @@ impl DevicePanel {
             auto_connect: false,
         }
     }
-    
+
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("📱 Device Connection");
-        
+
         ui.horizontal(|ui| {
             ui.label("Search:");
             ui.text_edit_singleline(&mut self.device_search);
@@ -90,11 +90,11 @@ impl DevicePanel {
                 // TODO: Trigger device scan
             }
         });
-        
+
         ui.checkbox(&mut self.auto_connect, "Auto-connect to devices");
-        
+
         ui.separator();
-        
+
         // Device list
         ui.label("Connected Devices:");
         egui::ScrollArea::vertical()
@@ -108,7 +108,7 @@ impl DevicePanel {
                         info!("Connecting to Pixel 7 emulator");
                     }
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label("📱");
                     ui.label("iPhone 15 Pro (12345678-1234-1234-1234-123456789ABC)");
@@ -117,15 +117,15 @@ impl DevicePanel {
                     }
                 });
             });
-        
+
         ui.separator();
-        
+
         // Connection status
         ui.horizontal(|ui| {
             ui.label("Status:");
             ui.colored_label(egui::Color32::GREEN, "✅ Connected");
         });
-        
+
         // Quick actions
         ui.horizontal(|ui| {
             if ui.button("📸 Screenshot").clicked() {
@@ -156,28 +156,43 @@ impl HardwarePanel {
             network_latency: 20.0,
         }
     }
-    
+
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("🎛️ Hardware Emulation");
-        
+
         // GPS Controls
         ui.collapsing("📍 GPS / Location", |ui| {
             ui.horizontal(|ui| {
                 ui.label("Latitude:");
-                ui.add(egui::DragValue::new(&mut self.gps_lat).speed(0.0001).fixed_decimals(6));
+                ui.add(
+                    egui::DragValue::new(&mut self.gps_lat)
+                        .speed(0.0001)
+                        .fixed_decimals(6),
+                );
             });
             ui.horizontal(|ui| {
                 ui.label("Longitude:");
-                ui.add(egui::DragValue::new(&mut self.gps_lon).speed(0.0001).fixed_decimals(6));
+                ui.add(
+                    egui::DragValue::new(&mut self.gps_lon)
+                        .speed(0.0001)
+                        .fixed_decimals(6),
+                );
             });
             ui.horizontal(|ui| {
                 ui.label("Altitude:");
-                ui.add(egui::DragValue::new(&mut self.gps_alt).speed(1.0).suffix("m"));
+                ui.add(
+                    egui::DragValue::new(&mut self.gps_alt)
+                        .speed(1.0)
+                        .suffix("m"),
+                );
             });
-            
+
             ui.horizontal(|ui| {
                 if ui.button("📍 Update Location").clicked() {
-                    info!("📍 Updating GPS location: {}, {}", self.gps_lat, self.gps_lon);
+                    info!(
+                        "📍 Updating GPS location: {}, {}",
+                        self.gps_lat, self.gps_lon
+                    );
                     // TODO: Send GPS update to hardware emulator
                 }
                 if ui.button("🌍 Random Walk").clicked() {
@@ -185,23 +200,53 @@ impl HardwarePanel {
                 }
             });
         });
-        
+
         // Motion Sensors
         ui.collapsing("📱 Motion Sensors", |ui| {
             ui.label("Accelerometer (m/s²):");
             ui.horizontal(|ui| {
-                ui.label("X:"); ui.add(egui::DragValue::new(&mut self.accel_x).speed(0.1).fixed_decimals(2));
-                ui.label("Y:"); ui.add(egui::DragValue::new(&mut self.accel_y).speed(0.1).fixed_decimals(2));
-                ui.label("Z:"); ui.add(egui::DragValue::new(&mut self.accel_z).speed(0.1).fixed_decimals(2));
+                ui.label("X:");
+                ui.add(
+                    egui::DragValue::new(&mut self.accel_x)
+                        .speed(0.1)
+                        .fixed_decimals(2),
+                );
+                ui.label("Y:");
+                ui.add(
+                    egui::DragValue::new(&mut self.accel_y)
+                        .speed(0.1)
+                        .fixed_decimals(2),
+                );
+                ui.label("Z:");
+                ui.add(
+                    egui::DragValue::new(&mut self.accel_z)
+                        .speed(0.1)
+                        .fixed_decimals(2),
+                );
             });
-            
+
             ui.label("Gyroscope (rad/s):");
             ui.horizontal(|ui| {
-                ui.label("X:"); ui.add(egui::DragValue::new(&mut self.gyro_x).speed(0.01).fixed_decimals(3));
-                ui.label("Y:"); ui.add(egui::DragValue::new(&mut self.gyro_y).speed(0.01).fixed_decimals(3));
-                ui.label("Z:"); ui.add(egui::DragValue::new(&mut self.gyro_z).speed(0.01).fixed_decimals(3));
+                ui.label("X:");
+                ui.add(
+                    egui::DragValue::new(&mut self.gyro_x)
+                        .speed(0.01)
+                        .fixed_decimals(3),
+                );
+                ui.label("Y:");
+                ui.add(
+                    egui::DragValue::new(&mut self.gyro_y)
+                        .speed(0.01)
+                        .fixed_decimals(3),
+                );
+                ui.label("Z:");
+                ui.add(
+                    egui::DragValue::new(&mut self.gyro_z)
+                        .speed(0.01)
+                        .fixed_decimals(3),
+                );
             });
-            
+
             ui.horizontal(|ui| {
                 if ui.button("📱 Shake Device").clicked() {
                     info!("📱 Simulating device shake");
@@ -211,24 +256,24 @@ impl HardwarePanel {
                 }
             });
         });
-        
+
         // Power & Network
         ui.collapsing("🔋 Power & Network", |ui| {
             ui.horizontal(|ui| {
                 ui.label("Battery Level:");
                 ui.add(egui::Slider::new(&mut self.battery_level, 0.0..=100.0).suffix("%"));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Network Speed:");
                 ui.add(egui::Slider::new(&mut self.network_speed, 0.0..=1000.0).suffix(" Mbps"));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Network Latency:");
                 ui.add(egui::Slider::new(&mut self.network_latency, 0.0..=500.0).suffix(" ms"));
             });
-            
+
             ui.horizontal(|ui| {
                 if ui.button("🔋 Low Battery").clicked() {
                     self.battery_level = 5.0;
@@ -239,7 +284,7 @@ impl HardwarePanel {
                 }
             });
         });
-        
+
         // Environmental Sensors
         ui.collapsing("🌡️ Environment", |ui| {
             ui.horizontal(|ui| {
@@ -250,7 +295,7 @@ impl HardwarePanel {
                     info!("🌙 Simulating dark environment");
                 }
             });
-            
+
             ui.horizontal(|ui| {
                 if ui.button("👋 Proximity Near").clicked() {
                     info!("👋 Simulating proximity sensor near");
@@ -276,21 +321,24 @@ impl AudioPanel {
             last_transcript: String::new(),
         }
     }
-    
+
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("🎵 Audio Processing");
-        
+
         // Text-to-Speech
         ui.collapsing("🗣️ Text-to-Speech (TTS)", |ui| {
             ui.label("Text to speak:");
             ui.text_edit_multiline(&mut self.tts_text);
-            
+
             ui.horizontal(|ui| {
-                ui.label("Rate:"); ui.add(egui::Slider::new(&mut self.tts_rate, 0.5..=2.0));
-                ui.label("Pitch:"); ui.add(egui::Slider::new(&mut self.tts_pitch, 0.5..=2.0));
-                ui.label("Volume:"); ui.add(egui::Slider::new(&mut self.tts_volume, 0.0..=1.0));
+                ui.label("Rate:");
+                ui.add(egui::Slider::new(&mut self.tts_rate, 0.5..=2.0));
+                ui.label("Pitch:");
+                ui.add(egui::Slider::new(&mut self.tts_pitch, 0.5..=2.0));
+                ui.label("Volume:");
+                ui.add(egui::Slider::new(&mut self.tts_volume, 0.0..=1.0));
             });
-            
+
             ui.horizontal(|ui| {
                 if ui.button("🗣️ Speak").clicked() {
                     info!("🗣️ Speaking text: {}", self.tts_text);
@@ -301,11 +349,11 @@ impl AudioPanel {
                 }
             });
         });
-        
+
         // Speech-to-Text
         ui.collapsing("👂 Speech-to-Text (STT)", |ui| {
             ui.checkbox(&mut self.stt_enabled, "Enable continuous listening");
-            
+
             ui.horizontal(|ui| {
                 if ui.button("🎙️ Start Recording").clicked() {
                     info!("🎙️ Starting audio recording");
@@ -316,15 +364,15 @@ impl AudioPanel {
                     // TODO: Stop recording
                 }
             });
-            
+
             ui.label("Last Transcript:");
             ui.text_edit_multiline(&mut self.last_transcript);
         });
-        
+
         // Audio Routing
         ui.collapsing("🔄 Audio Routing", |ui| {
             ui.checkbox(&mut self.audio_loopback, "Enable TTS → STT loopback");
-            
+
             ui.horizontal(|ui| {
                 if ui.button("🎵 Route to Device").clicked() {
                     info!("🎵 Routing audio to device");
@@ -333,7 +381,7 @@ impl AudioPanel {
                     info!("🎙️ Capturing audio from device");
                 }
             });
-            
+
             ui.label("Audio Pipeline:");
             ui.label("🎤 Agent TTS → 📱 Device Input");
             ui.label("📱 Device Output → 👂 Agent STT");
@@ -352,22 +400,25 @@ impl VisionPanel {
             last_analysis_summary: String::new(),
         }
     }
-    
+
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("👁️ Computer Vision");
-        
+
         // Vision Settings
         ui.collapsing("⚙️ Analysis Settings", |ui| {
             ui.checkbox(&mut self.ocr_enabled, "📝 Enable OCR (Text Recognition)");
-            ui.checkbox(&mut self.ui_detection_enabled, "🎯 Enable UI Element Detection");
+            ui.checkbox(
+                &mut self.ui_detection_enabled,
+                "🎯 Enable UI Element Detection",
+            );
             ui.checkbox(&mut self.face_detection_enabled, "👤 Enable Face Detection");
-            
+
             ui.horizontal(|ui| {
                 ui.label("Confidence Threshold:");
                 ui.add(egui::Slider::new(&mut self.confidence_threshold, 0.0..=1.0));
             });
         });
-        
+
         // Analysis Controls
         ui.collapsing("🔍 Screen Analysis", |ui| {
             ui.horizontal(|ui| {
@@ -379,16 +430,16 @@ impl VisionPanel {
                     info!("🔄 Starting continuous screen analysis");
                 }
             });
-            
+
             if ui.button("🎯 Find Clickable Elements").clicked() {
                 info!("🎯 Identifying clickable elements");
             }
-            
+
             if ui.button("📝 Extract All Text").clicked() {
                 info!("📝 Extracting all text from screen");
             }
         });
-        
+
         // Analysis Results
         ui.collapsing("📊 Analysis Results", |ui| {
             ui.label("Last Analysis Summary:");
@@ -402,7 +453,7 @@ impl VisionPanel {
                     }
                 });
         });
-        
+
         // Element Inspector
         ui.collapsing("🔍 Element Inspector", |ui| {
             ui.label("Click on screen elements to inspect them");
@@ -418,6 +469,12 @@ impl VisionPanel {
     }
 }
 
+impl Default for AgentPanel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentPanel {
     pub fn new() -> Self {
         Self {
@@ -429,10 +486,10 @@ impl AgentPanel {
             current_task: String::new(),
         }
     }
-    
+
     pub fn show(&mut self, ui: &mut egui::Ui) {
         ui.heading("🤖 Agent Interface");
-        
+
         // Agent Mode Selection
         ui.horizontal(|ui| {
             ui.label("Mode:");
@@ -440,21 +497,25 @@ impl AgentPanel {
                 .selected_text(format!("{:?}", self.agent_mode))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.agent_mode, AgentMode::Manual, "Manual");
-                    ui.selectable_value(&mut self.agent_mode, AgentMode::Conversational, "Conversational");
+                    ui.selectable_value(
+                        &mut self.agent_mode,
+                        AgentMode::Conversational,
+                        "Conversational",
+                    );
                     ui.selectable_value(&mut self.agent_mode, AgentMode::Autonomous, "Autonomous");
                     ui.selectable_value(&mut self.agent_mode, AgentMode::Testing, "Testing");
                 });
         });
-        
+
         ui.checkbox(&mut self.auto_mode, "🤖 Autonomous operation");
-        
+
         ui.separator();
-        
+
         // Command Input
         ui.collapsing("💬 Natural Language Commands", |ui| {
             ui.label("Enter command:");
             ui.text_edit_multiline(&mut self.agent_command);
-            
+
             ui.horizontal(|ui| {
                 if ui.button("🚀 Execute").clicked() {
                     info!("🚀 Executing agent command: {}", self.agent_command);
@@ -465,7 +526,7 @@ impl AgentPanel {
                     self.agent_command.clear();
                 }
             });
-            
+
             // Example commands
             ui.label("Example commands:");
             egui::ScrollArea::vertical()
@@ -480,7 +541,7 @@ impl AgentPanel {
                         "Shake the device gently",
                         "Set battery level to 15%",
                     ];
-                    
+
                     for example in examples.iter() {
                         if ui.button(*example).clicked() {
                             self.agent_command = example.to_string();
@@ -488,7 +549,7 @@ impl AgentPanel {
                     }
                 });
         });
-        
+
         // Quick Actions
         ui.collapsing("⚡ Quick Actions", |ui| {
             ui.horizontal(|ui| {
@@ -499,7 +560,7 @@ impl AgentPanel {
                     info!("🗣️ Speaking test message");
                 }
             });
-            
+
             ui.horizontal(|ui| {
                 if ui.button("👂 Listen for 5 seconds").clicked() {
                     info!("👂 Listening for audio");
@@ -509,12 +570,12 @@ impl AgentPanel {
                 }
             });
         });
-        
+
         // Current Task
         ui.collapsing("📋 Current Task", |ui| {
             ui.label("Task:");
             ui.text_edit_singleline(&mut self.current_task);
-            
+
             if self.current_task.is_empty() {
                 ui.label("No active task");
             } else {
@@ -529,7 +590,7 @@ impl AgentPanel {
                 });
             }
         });
-        
+
         // Command History
         ui.collapsing("📜 Command History", |ui| {
             egui::ScrollArea::vertical()

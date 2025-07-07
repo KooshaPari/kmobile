@@ -61,6 +61,7 @@ pub enum DependencyStatus {
 }
 
 pub struct ProjectManager {
+    #[allow(dead_code)]
     config: Config,
     current_project: Option<ProjectConfig>,
 }
@@ -68,44 +69,45 @@ pub struct ProjectManager {
 impl ProjectManager {
     pub async fn new(config: &Config) -> Result<Self> {
         let current_project = Self::detect_current_project(config).await?;
-        
+
         Ok(Self {
             config: config.clone(),
             current_project,
         })
     }
-    
+
     async fn detect_current_project(config: &Config) -> Result<Option<ProjectConfig>> {
         let current_dir = std::env::current_dir()?;
-        
+
         // Check if we're in a configured project
         for project in &config.projects {
             if current_dir.starts_with(&project.path) {
                 return Ok(Some(project.clone()));
             }
         }
-        
+
         // Try to detect project type from files
         if let Ok(project) = Self::detect_project_from_files(&current_dir).await {
             return Ok(Some(project));
         }
-        
+
         Ok(None)
     }
-    
-    async fn detect_project_from_files(path: &PathBuf) -> Result<ProjectConfig> {
+
+    async fn detect_project_from_files(path: &std::path::Path) -> Result<ProjectConfig> {
         let mut project = ProjectConfig {
-            name: path.file_name()
+            name: path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string(),
-            path: path.clone(),
+            path: path.to_path_buf(),
             platform: "unknown".to_string(),
             build_command: None,
             test_command: None,
             metadata: HashMap::new(),
         };
-        
+
         // Android project detection
         if path.join("build.gradle").exists() || path.join("build.gradle.kts").exists() {
             project.platform = "android".to_string();
@@ -113,23 +115,26 @@ impl ProjectManager {
             project.test_command = Some("./gradlew test".to_string());
         }
         // iOS project detection
-        else if path.join("ios").exists() || 
-                 path.read_dir()?.any(|entry| {
-                     if let Ok(e) = entry {
-                         e.path().extension()
-                             .map_or(false, |ext| ext == "xcodeproj" || ext == "xcworkspace")
-                     } else {
-                         false
-                     }
-                 }) {
+        else if path.join("ios").exists()
+            || path.read_dir()?.any(|entry| {
+                if let Ok(e) = entry {
+                    e.path()
+                        .extension()
+                        .is_some_and(|ext| ext == "xcodeproj" || ext == "xcworkspace")
+                } else {
+                    false
+                }
+            })
+        {
             project.platform = "ios".to_string();
             project.build_command = Some("xcodebuild -scheme Debug".to_string());
             project.test_command = Some("xcodebuild test -scheme Debug".to_string());
         }
         // React Native project detection
-        else if path.join("package.json").exists() && 
-                 path.join("android").exists() && 
-                 path.join("ios").exists() {
+        else if path.join("package.json").exists()
+            && path.join("android").exists()
+            && path.join("ios").exists()
+        {
             project.platform = "react-native".to_string();
             project.build_command = Some("npx react-native run-android".to_string());
             project.test_command = Some("npm test".to_string());
@@ -140,16 +145,19 @@ impl ProjectManager {
             project.build_command = Some("flutter build apk".to_string());
             project.test_command = Some("flutter test".to_string());
         }
-        
+
         Ok(project)
     }
-    
+
     pub async fn init_project(&self, name: &str, template: Option<&str>) -> Result<()> {
-        info!("Initializing project: {} with template: {:?}", name, template);
-        
+        info!(
+            "Initializing project: {} with template: {:?}",
+            name, template
+        );
+
         let project_path = std::env::current_dir()?.join(name);
         fs::create_dir_all(&project_path)?;
-        
+
         match template {
             Some("android") => self.init_android_project(&project_path, name).await?,
             Some("ios") => self.init_ios_project(&project_path, name).await?,
@@ -157,13 +165,13 @@ impl ProjectManager {
             Some("flutter") => self.init_flutter_project(&project_path, name).await?,
             _ => self.init_basic_project(&project_path, name).await?,
         }
-        
+
         Ok(())
     }
-    
+
     async fn init_android_project(&self, path: &PathBuf, name: &str) -> Result<()> {
         debug!("Initializing Android project at {:?}", path);
-        
+
         // Create basic Android project structure
         let dirs = [
             "app/src/main/java",
@@ -172,13 +180,14 @@ impl ProjectManager {
             "app/src/test/java",
             "app/src/androidTest/java",
         ];
-        
+
         for dir in &dirs {
             fs::create_dir_all(path.join(dir))?;
         }
-        
+
         // Create build.gradle
-        let build_gradle = format!(r#"
+        let build_gradle = format!(
+            r#"
 plugins {{
     id 'com.android.application'
 }}
@@ -187,7 +196,7 @@ android {{
     compileSdk 34
     
     defaultConfig {{
-        applicationId "com.kmobile.{}"
+        applicationId "com.kmobile.{name}"
         minSdk 21
         targetSdk 34
         versionCode 1
@@ -212,21 +221,25 @@ dependencies {{
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }}
-"#, name);
-        
+"#
+        );
+
         fs::write(path.join("app/build.gradle"), build_gradle)?;
-        
+
         // Create settings.gradle
-        let settings_gradle = format!(r#"
-rootProject.name = "{}"
+        let settings_gradle = format!(
+            r#"
+rootProject.name = "{name}"
 include ':app'
-"#, name);
-        
+"#
+        );
+
         fs::write(path.join("settings.gradle"), settings_gradle)?;
-        
+
         // Create MainActivity
-        let main_activity = format!(r#"
-package com.kmobile.{};
+        let main_activity = format!(
+            r#"
+package com.kmobile.{name};
 
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
@@ -238,109 +251,122 @@ public class MainActivity extends AppCompatActivity {{
         setContentView(R.layout.activity_main);
     }}
 }}
-"#, name);
-        
-        fs::write(path.join("app/src/main/java/MainActivity.java"), main_activity)?;
-        
+"#
+        );
+
+        fs::write(
+            path.join("app/src/main/java/MainActivity.java"),
+            main_activity,
+        )?;
+
         Ok(())
     }
-    
+
     async fn init_ios_project(&self, path: &PathBuf, name: &str) -> Result<()> {
         debug!("Initializing iOS project at {:?}", path);
-        
+
         // Use xcodegen or create basic project structure
         let output = Command::new("xcodegen")
             .args(["generate"])
             .current_dir(path)
             .output();
-        
+
         if output.is_err() {
             // Fallback to basic structure
             let dirs = [
-                &format!("{}/Sources", name),
-                &format!("{}/Resources", name),
-                &format!("{}Tests", name),
+                &format!("{name}/Sources"),
+                &format!("{name}/Resources"),
+                &format!("{name}Tests"),
             ];
-            
+
             for dir in &dirs {
                 fs::create_dir_all(path.join(dir))?;
             }
-            
+
             // Create basic project.yml for xcodegen
-            let project_yml = format!(r#"
-name: {}
+            let project_yml = format!(
+                r#"
+name: {name}
 options:
   bundleIdPrefix: com.kmobile
 targets:
-  {}:
+  {name}:
     type: application
     platform: iOS
     deploymentTarget: "14.0"
     sources:
-      - {}/Sources
+      - {name}/Sources
     resources:
-      - {}/Resources
-  {}Tests:
+      - {name}/Resources
+  {name}Tests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - {}Tests
+      - {name}Tests
     dependencies:
-      - target: {}
-"#, name, name, name, name, name, name, name);
-            
+      - target: {name}
+"#
+            );
+
             fs::write(path.join("project.yml"), project_yml)?;
         }
-        
+
         Ok(())
     }
-    
+
     async fn init_react_native_project(&self, path: &PathBuf, name: &str) -> Result<()> {
         debug!("Initializing React Native project at {:?}", path);
-        
+
         let output = Command::new("npx")
             .args(["react-native", "init", name])
             .current_dir(path.parent().unwrap())
             .output()?;
-        
+
         if !output.status.success() {
             let error_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(KMobileError::ProjectInitError(format!("Failed to initialize React Native project: {}", error_msg)).into());
+            return Err(KMobileError::ProjectInitError(format!(
+                "Failed to initialize React Native project: {error_msg}"
+            ))
+            .into());
         }
-        
+
         Ok(())
     }
-    
+
     async fn init_flutter_project(&self, path: &PathBuf, name: &str) -> Result<()> {
         debug!("Initializing Flutter project at {:?}", path);
-        
+
         let output = Command::new("flutter")
             .args(["create", name])
             .current_dir(path.parent().unwrap())
             .output()?;
-        
+
         if !output.status.success() {
             let error_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(KMobileError::ProjectInitError(format!("Failed to initialize Flutter project: {}", error_msg)).into());
+            return Err(KMobileError::ProjectInitError(format!(
+                "Failed to initialize Flutter project: {error_msg}"
+            ))
+            .into());
         }
-        
+
         Ok(())
     }
-    
+
     async fn init_basic_project(&self, path: &PathBuf, name: &str) -> Result<()> {
         debug!("Initializing basic project at {:?}", path);
-        
+
         // Create basic project structure
         let dirs = ["src", "tests", "docs"];
-        
+
         for dir in &dirs {
             fs::create_dir_all(path.join(dir))?;
         }
-        
+
         // Create kmobile.toml
-        let kmobile_toml = format!(r#"
+        let kmobile_toml = format!(
+            r#"
 [project]
-name = "{}"
+name = "{name}"
 version = "0.1.0"
 platform = "multi"
 
@@ -349,12 +375,14 @@ command = "echo 'Build command not configured'"
 
 [test]
 command = "echo 'Test command not configured'"
-"#, name);
-        
+"#
+        );
+
         fs::write(path.join("kmobile.toml"), kmobile_toml)?;
-        
+
         // Create README.md
-        let readme = format!(r#"# {}
+        let readme = format!(
+            r#"# {name}
 
 A mobile project created with KMobile.
 
@@ -370,56 +398,63 @@ A mobile project created with KMobile.
 - `kmobile simulator list` - List available simulators
 - `kmobile project build` - Build the project
 - `kmobile test run` - Run tests
-"#, name);
-        
+"#
+        );
+
         fs::write(path.join("README.md"), readme)?;
-        
+
         Ok(())
     }
-    
+
     pub async fn build_project(&self, target: Option<&str>) -> Result<()> {
         info!("Building project with target: {:?}", target);
-        
-        let project = self.current_project.as_ref()
-            .ok_or_else(|| KMobileError::ProjectNotFound("No project found in current directory".to_string()))?;
-        
-        let build_command = project.build_command.as_ref()
+
+        let project = self.current_project.as_ref().ok_or_else(|| {
+            KMobileError::ProjectNotFound("No project found in current directory".to_string())
+        })?;
+
+        let build_command = project
+            .build_command
+            .as_ref()
             .ok_or_else(|| KMobileError::ConfigError("No build command configured".to_string()))?;
-        
+
         let mut cmd_parts = build_command.split_whitespace();
         let command = cmd_parts.next().unwrap();
         let args: Vec<&str> = cmd_parts.collect();
-        
+
         let output = Command::new(command)
             .args(&args)
             .current_dir(&project.path)
             .output()?;
-        
+
         if !output.status.success() {
             let error_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(KMobileError::BuildError(format!("Build failed: {}", error_msg)).into());
+            return Err(KMobileError::BuildError(format!("Build failed: {error_msg}")).into());
         }
-        
+
         info!("Project built successfully");
         Ok(())
     }
-    
+
     pub async fn clean_project(&self) -> Result<()> {
         info!("Cleaning project");
-        
-        let project = self.current_project.as_ref()
-            .ok_or_else(|| KMobileError::ProjectNotFound("No project found in current directory".to_string()))?;
-        
+
+        let project = self.current_project.as_ref().ok_or_else(|| {
+            KMobileError::ProjectNotFound("No project found in current directory".to_string())
+        })?;
+
         match project.platform.as_str() {
             "android" => {
                 let output = Command::new("./gradlew")
                     .args(["clean"])
                     .current_dir(&project.path)
                     .output()?;
-                
+
                 if !output.status.success() {
                     let error_msg = String::from_utf8_lossy(&output.stderr);
-                    return Err(KMobileError::BuildError(format!("Clean failed: {}", error_msg)).into());
+                    return Err(
+                        KMobileError::BuildError(format!("Clean failed: {error_msg}")).into(),
+                    );
                 }
             }
             "ios" => {
@@ -427,10 +462,12 @@ A mobile project created with KMobile.
                     .args(["clean"])
                     .current_dir(&project.path)
                     .output()?;
-                
+
                 if !output.status.success() {
                     let error_msg = String::from_utf8_lossy(&output.stderr);
-                    return Err(KMobileError::BuildError(format!("Clean failed: {}", error_msg)).into());
+                    return Err(
+                        KMobileError::BuildError(format!("Clean failed: {error_msg}")).into(),
+                    );
                 }
             }
             "react-native" => {
@@ -444,24 +481,30 @@ A mobile project created with KMobile.
                     .args(["clean"])
                     .current_dir(&project.path)
                     .output()?;
-                
+
                 if !output.status.success() {
                     let error_msg = String::from_utf8_lossy(&output.stderr);
-                    return Err(KMobileError::BuildError(format!("Clean failed: {}", error_msg)).into());
+                    return Err(
+                        KMobileError::BuildError(format!("Clean failed: {error_msg}")).into(),
+                    );
                 }
             }
             _ => {
-                info!("Clean command not implemented for platform: {}", project.platform);
+                info!(
+                    "Clean command not implemented for platform: {}",
+                    project.platform
+                );
             }
         }
-        
+
         Ok(())
     }
-    
+
     pub async fn get_project_status(&self) -> Result<String> {
-        let project = self.current_project.as_ref()
-            .ok_or_else(|| KMobileError::ProjectNotFound("No project found in current directory".to_string()))?;
-        
+        let project = self.current_project.as_ref().ok_or_else(|| {
+            KMobileError::ProjectNotFound("No project found in current directory".to_string())
+        })?;
+
         let status = ProjectStatus {
             name: project.name.clone(),
             path: project.path.clone(),
@@ -470,7 +513,7 @@ A mobile project created with KMobile.
             tests_status: TestStatus::NotRun,
             dependencies: Vec::new(),
         };
-        
+
         let status_json = serde_json::to_string_pretty(&status)?;
         Ok(status_json)
     }

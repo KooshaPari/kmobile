@@ -15,7 +15,7 @@ pub struct Config {
     pub projects: Vec<ProjectConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AndroidConfig {
     pub sdk_path: Option<PathBuf>,
     pub adb_path: Option<PathBuf>,
@@ -24,7 +24,7 @@ pub struct AndroidConfig {
     pub build_tools_version: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IosConfig {
     pub xcode_path: Option<PathBuf>,
     pub simctl_path: Option<PathBuf>,
@@ -90,30 +90,6 @@ impl Default for Config {
     }
 }
 
-impl Default for AndroidConfig {
-    fn default() -> Self {
-        Self {
-            sdk_path: None,
-            adb_path: None,
-            emulator_path: None,
-            default_emulator: None,
-            build_tools_version: None,
-        }
-    }
-}
-
-impl Default for IosConfig {
-    fn default() -> Self {
-        Self {
-            xcode_path: None,
-            simctl_path: None,
-            default_simulator: None,
-            developer_team: None,
-            provisioning_profile: None,
-        }
-    }
-}
-
 impl Default for TestingConfig {
     fn default() -> Self {
         Self {
@@ -157,7 +133,7 @@ impl Default for ApiConfig {
 impl Config {
     pub fn load(path: Option<&str>) -> Result<Self> {
         let config_path = path.unwrap_or("kmobile.toml");
-        
+
         if std::path::Path::new(config_path).exists() {
             let content = std::fs::read_to_string(config_path)?;
             let config: Config = toml::from_str(&content)?;
@@ -168,17 +144,17 @@ impl Config {
             Ok(default_config)
         }
     }
-    
+
     pub fn save(&self, path: &str) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
         std::fs::write(path, content)?;
         Ok(())
     }
-    
+
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn detect_android_sdk(&mut self) -> Result<()> {
         // Try to detect Android SDK path
         if let Ok(sdk_path) = std::env::var("ANDROID_SDK_ROOT") {
@@ -186,7 +162,7 @@ impl Config {
         } else if let Ok(sdk_path) = std::env::var("ANDROID_HOME") {
             self.android.sdk_path = Some(PathBuf::from(sdk_path));
         }
-        
+
         // Try to detect ADB path
         if let Some(sdk_path) = &self.android.sdk_path {
             let adb_path = sdk_path.join("platform-tools").join("adb");
@@ -194,33 +170,32 @@ impl Config {
                 self.android.adb_path = Some(adb_path);
             }
         }
-        
+
         Ok(())
     }
-    
+
     pub fn detect_ios_tools(&mut self) -> Result<()> {
         // Try to detect Xcode path
         if let Ok(output) = std::process::Command::new("xcode-select")
             .arg("-p")
-            .output() {
+            .output()
+        {
             if output.status.success() {
                 let path_str = String::from_utf8_lossy(&output.stdout);
                 let path = path_str.trim();
                 self.ios.xcode_path = Some(PathBuf::from(path));
             }
         }
-        
+
         // Try to detect simctl path
-        if let Ok(output) = std::process::Command::new("which")
-            .arg("simctl")
-            .output() {
+        if let Ok(output) = std::process::Command::new("which").arg("simctl").output() {
             if output.status.success() {
                 let path_str = String::from_utf8_lossy(&output.stdout);
                 let path = path_str.trim();
                 self.ios.simctl_path = Some(PathBuf::from(path));
             }
         }
-        
+
         Ok(())
     }
 }

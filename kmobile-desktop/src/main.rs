@@ -1,22 +1,26 @@
 use anyhow::Result;
 use clap::Parser;
 use eframe::egui;
-use tracing::{info, warn};
 use kmobile_desktop::{Args, KMobileDesktopApp};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     // Initialize logging
     let subscriber = tracing_subscriber::fmt()
-        .with_max_level(if args.debug { tracing::Level::DEBUG } else { tracing::Level::INFO })
+        .with_max_level(if args.debug {
+            tracing::Level::DEBUG
+        } else {
+            tracing::Level::INFO
+        })
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
-    
+
     info!("🚀 Starting KMobile Desktop - Hardware Emulation & Visual Control");
     info!("🎯 Revolutionary mobile device control with full hardware simulation");
-    
+
     // Initialize the desktop application
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -26,14 +30,15 @@ async fn main() -> Result<()> {
             .with_fullscreen(args.fullscreen),
         ..Default::default()
     };
-    
+
     let app = KMobileDesktopApp::new(&args).await?;
-    
+
     eframe::run_native(
         "KMobile Desktop - Hardware Emulation Control",
         native_options,
         Box::new(|_cc| Ok(Box::new(app))),
-    ).map_err(|e| anyhow::anyhow!("Failed to run desktop app: {}", e))
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to run desktop app: {}", e))
 }
 
 fn load_icon() -> egui::IconData {
@@ -49,14 +54,15 @@ fn load_icon() -> egui::IconData {
                     } else {
                         image::Rgba([255u8, 255u8, 255u8, 255u8]) // White
                     }
-                }).into()
+                })
+                .into()
             })
             .into_rgba8();
         let (width, height) = image.dimensions();
         let rgba = image.into_raw();
         (rgba, width, height)
     };
-    
+
     egui::IconData {
         rgba: icon_rgba,
         width: icon_width,
