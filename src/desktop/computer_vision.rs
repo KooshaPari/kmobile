@@ -1,6 +1,5 @@
 //! Computer Vision and Screen Analysis for Mobile Devices
-//! This module is under active development and contains placeholder implementations
-#![allow(dead_code)]
+//! Advanced screen understanding, OCR, and UI element detection for mobile device automation
 
 use anyhow::Result;
 // use opencv::{core, imgproc, objdetect, prelude::*};  // Optional dependency

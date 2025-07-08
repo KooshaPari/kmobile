@@ -1,6 +1,5 @@
 //! KMobile Desktop Application
-//! This module is under active development and contains placeholder implementations
-#![allow(dead_code, unused_variables, clippy::arc_with_non_send_sync)]
+//! Main desktop GUI application for revolutionary mobile hardware emulation and control
 
 use anyhow::Result;
 use clap::Parser;

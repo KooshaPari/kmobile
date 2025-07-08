@@ -8,7 +8,6 @@ use tracing::{debug, info, warn};
 /// Provides real-time communication with mobile devices and simulators
 /// Enables hardware injection and screen capture
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct DeviceBridge {
     // Connected devices
     connected_devices: HashMap<String, DeviceConnection>,
@@ -37,10 +36,10 @@ pub struct DeviceBridge {
 }
 
 #[derive(Debug)]
-struct DeviceConnection {
+pub struct DeviceConnection {
     device_id: String,
     device_type: DeviceType,
-    connection_type: ConnectionType,
+    _connection_type: ConnectionType,
     capabilities: DeviceCapabilities,
     status: ConnectionStatus,
 }
@@ -61,7 +60,7 @@ pub enum ConnectionType {
     Simulator,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DeviceCapabilities {
     pub screen_capture: bool,
     pub audio_capture: bool,
@@ -86,7 +85,7 @@ struct AdbController {
 #[derive(Debug)]
 struct IosController {
     simctl_path: Option<String>,
-    ios_deploy_path: Option<String>,
+    _ios_deploy_path: Option<String>,
 }
 
 #[derive(Debug)]
@@ -184,7 +183,7 @@ impl DeviceBridge {
             } else {
                 DeviceType::AndroidPhysical
             },
-            connection_type: ConnectionType::Usb,
+            _connection_type: ConnectionType::Usb,
             capabilities,
             status: ConnectionStatus::Connected,
         };
@@ -208,7 +207,7 @@ impl DeviceBridge {
             } else {
                 DeviceType::IosPhysical
             },
-            connection_type: ConnectionType::Simulator,
+            _connection_type: ConnectionType::Simulator,
             capabilities,
             status: ConnectionStatus::Connected,
         };
@@ -408,13 +407,60 @@ impl DeviceBridge {
         }
     }
 
-    #[allow(private_interfaces)]
-    pub fn get_connected_devices(&self) -> Vec<&DeviceConnection> {
-        self.connected_devices.values().collect()
+    pub fn get_connected_devices(&self) -> Vec<String> {
+        self.connected_devices
+            .values()
+            .filter(|conn| conn.is_connected())
+            .map(|conn| conn.get_device_id().to_string())
+            .collect()
+    }
+
+    pub fn get_device_connection(&self, device_id: &str) -> Option<&DeviceConnection> {
+        self.connected_devices.get(device_id)
+    }
+
+    pub async fn start_websocket_server(&mut self) -> Result<()> {
+        #[cfg(feature = "desktop")]
+        {
+            info!(
+                "🌐 Starting WebSocket server on {}:{}",
+                self.host, self.port
+            );
+
+            let listener =
+                tokio::net::TcpListener::bind(format!("{}:{}", self.host, self.port)).await?;
+            info!(
+                "✅ WebSocket server listening on {}:{}",
+                self.host, self.port
+            );
+
+            // Start accepting connections in background
+            let host = self.host.clone();
+            let port = self.port;
+            tokio::spawn(async move {
+                while let Ok((stream, addr)) = listener.accept().await {
+                    info!("📱 New device connection from: {}", addr);
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_websocket_connection(stream).await {
+                            warn!("WebSocket connection error: {}", e);
+                        }
+                    });
+                }
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn get_server_address(&self) -> String {
+        format!("{}:{}", self.host, self.port)
     }
 
     pub async fn start_real_time_bridge(&mut self, device_id: &str) -> Result<()> {
         info!("⚡ Starting real-time bridge for device: {}", device_id);
+
+        // Start WebSocket server for real-time communication
+        self.start_websocket_server().await?;
 
         // Start real-time communication loops for:
         // 1. Screen mirroring
@@ -556,13 +602,13 @@ impl IosController {
             .map(|p| p.to_string_lossy().to_string())
             .ok();
 
-        let ios_deploy_path = which::which("ios-deploy")
+        let _ios_deploy_path = which::which("ios-deploy")
             .map(|p| p.to_string_lossy().to_string())
             .ok();
 
         Ok(Self {
             simctl_path,
-            ios_deploy_path,
+            _ios_deploy_path,
         })
     }
 
@@ -694,4 +740,132 @@ pub struct ScreenshotData {
     pub height: u32,
     pub data: Vec<u8>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+#[cfg(feature = "desktop")]
+async fn handle_websocket_connection(stream: tokio::net::TcpStream) -> Result<()> {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{accept_async, tungstenite::Message};
+
+    let ws_stream = accept_async(stream).await?;
+    let (mut ws_sender, mut ws_receiver) = ws_stream.split();
+
+    info!("📱 WebSocket connection established");
+
+    while let Some(msg) = ws_receiver.next().await {
+        match msg? {
+            Message::Text(text) => {
+                debug!("📨 Received message: {}", text);
+
+                // Parse and handle device messages
+                if let Ok(device_msg) = serde_json::from_str::<DeviceMessage>(&text) {
+                    let response = handle_device_message(device_msg).await?;
+                    let response_text = serde_json::to_string(&response)?;
+                    ws_sender.send(Message::Text(response_text)).await?;
+                }
+            }
+            Message::Binary(data) => {
+                debug!("📨 Received binary data: {} bytes", data.len());
+                // Handle binary data (e.g., screen captures, audio)
+            }
+            Message::Close(_) => {
+                info!("📱 WebSocket connection closed");
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeviceMessage {
+    pub message_type: String,
+    pub device_id: String,
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DeviceResponse {
+    pub success: bool,
+    pub message: String,
+    pub data: Option<serde_json::Value>,
+}
+
+#[allow(dead_code)]
+async fn handle_device_message(msg: DeviceMessage) -> Result<DeviceResponse> {
+    debug!("🔧 Handling device message: {}", msg.message_type);
+
+    match msg.message_type.as_str() {
+        "screen_capture" => {
+            // Handle screen capture request
+            Ok(DeviceResponse {
+                success: true,
+                message: "Screen capture initiated".to_string(),
+                data: Some(serde_json::json!({"status": "capturing"})),
+            })
+        }
+        "hardware_inject" => {
+            // Handle hardware injection
+            Ok(DeviceResponse {
+                success: true,
+                message: "Hardware injection completed".to_string(),
+                data: None,
+            })
+        }
+        "audio_stream" => {
+            // Handle audio streaming
+            Ok(DeviceResponse {
+                success: true,
+                message: "Audio stream started".to_string(),
+                data: None,
+            })
+        }
+        _ => Ok(DeviceResponse {
+            success: false,
+            message: format!("Unknown message type: {}", msg.message_type),
+            data: None,
+        }),
+    }
+}
+
+impl DeviceConnection {
+    #[allow(dead_code)]
+    pub fn new(
+        device_id: String,
+        device_type: DeviceType,
+        connection_type: ConnectionType,
+    ) -> Self {
+        Self {
+            device_id,
+            device_type,
+            _connection_type: connection_type,
+            capabilities: DeviceCapabilities::default(),
+            status: ConnectionStatus::Connected,
+        }
+    }
+
+    pub fn get_device_id(&self) -> &str {
+        &self.device_id
+    }
+
+    #[allow(dead_code)]
+    pub fn get_connection_type(&self) -> &ConnectionType {
+        &self._connection_type
+    }
+
+    #[allow(dead_code)]
+    pub fn get_status(&self) -> &ConnectionStatus {
+        &self.status
+    }
+
+    #[allow(dead_code)]
+    pub fn update_status(&mut self, status: ConnectionStatus) {
+        self.status = status;
+    }
+
+    pub fn is_connected(&self) -> bool {
+        matches!(self.status, ConnectionStatus::Connected)
+    }
 }

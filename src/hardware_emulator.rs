@@ -147,6 +147,9 @@ impl HardwareEmulator {
         // Start sensor simulation loops
         self.start_sensor_simulation(device_id).await?;
 
+        // Start battery simulation
+        self.start_battery_simulation(device_id).await?;
+
         info!("✅ Hardware emulator attached to device: {}", device_id);
         Ok(())
     }
@@ -364,6 +367,75 @@ impl HardwareEmulator {
         Ok(())
     }
 
+    pub async fn set_battery_level(&mut self, device_id: &str, level: f32) -> Result<()> {
+        info!(
+            "🔋 Setting battery level for device {}: {}%",
+            device_id, level
+        );
+
+        // Update battery simulator
+        self.battery_simulator.set_level(level);
+
+        // Update device state
+        if let Some(device_state) = self.connected_devices.get_mut(device_id) {
+            device_state.battery_level = level;
+        }
+
+        Ok(())
+    }
+
+    pub async fn set_charging_state(&mut self, device_id: &str, charging: bool) -> Result<()> {
+        info!(
+            "🔌 Setting charging state for device {}: {}",
+            device_id,
+            if charging { "charging" } else { "not charging" }
+        );
+
+        self.battery_simulator.set_charging(charging);
+
+        Ok(())
+    }
+
+    pub fn get_battery_level(&self, device_id: &str) -> f32 {
+        if let Some(device_state) = self.connected_devices.get(device_id) {
+            device_state.battery_level
+        } else {
+            self.battery_simulator.get_level()
+        }
+    }
+
+    pub fn is_device_charging(&self, _device_id: &str) -> bool {
+        self.battery_simulator.is_charging()
+    }
+
+    pub async fn start_battery_simulation(&mut self, device_id: &str) -> Result<()> {
+        info!("🔋 Starting battery simulation for device: {}", device_id);
+
+        let device_id_clone = device_id.to_string();
+        tokio::spawn(async move {
+            let mut last_update = std::time::Instant::now();
+
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+
+                let elapsed = last_update.elapsed().as_secs_f32();
+                // Simulate realistic battery drain/charge rates
+                let _drain_rate = 0.1; // 0.1% per 30 seconds when active
+                let _charge_rate = 0.5; // 0.5% per 30 seconds when charging
+
+                // In a real implementation, this would update the actual battery simulator
+                debug!(
+                    "🔋 Battery simulation tick for device: {} ({}s elapsed)",
+                    device_id_clone, elapsed
+                );
+
+                last_update = std::time::Instant::now();
+            }
+        });
+
+        Ok(())
+    }
+
     async fn start_sensor_simulation(&self, device_id: &str) -> Result<()> {
         debug!(
             "🔄 Starting sensor simulation loops for device: {}",
@@ -566,11 +638,61 @@ impl NetworkSimulator {
 }
 
 #[derive(Debug)]
-struct BatterySimulator;
+struct BatterySimulator {
+    current_level: f32,
+    charging: bool,
+    _health: BatteryHealth,
+    _temperature: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BatteryHealth {
+    Good,
+    Cold,
+    Overheat,
+    Dead,
+    Overvoltage,
+    Failure,
+}
 
 impl BatterySimulator {
     fn new() -> Self {
-        Self
+        Self {
+            current_level: 85.0,
+            charging: false,
+            _health: BatteryHealth::Good,
+            _temperature: 25.0,
+        }
+    }
+
+    fn set_level(&mut self, level: f32) {
+        self.current_level = level.clamp(0.0, 100.0);
+    }
+
+    fn set_charging(&mut self, charging: bool) {
+        self.charging = charging;
+    }
+
+    fn get_level(&self) -> f32 {
+        self.current_level
+    }
+
+    fn is_charging(&self) -> bool {
+        self.charging
+    }
+
+    #[allow(dead_code)]
+    fn simulate_drain(&mut self, rate: f32) {
+        if !self.charging {
+            self.current_level = (self.current_level - rate).max(0.0);
+        }
+    }
+
+    #[allow(dead_code)]
+    fn simulate_charge(&mut self, rate: f32) {
+        if self.charging {
+            self.current_level = (self.current_level + rate).min(100.0);
+        }
     }
 }
 

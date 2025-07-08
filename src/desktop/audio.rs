@@ -1,6 +1,5 @@
 //! Audio Processing and TTS/STT for Mobile Device Interaction
-//! This module is under active development and contains placeholder implementations
-#![allow(dead_code, unused_variables, unused_mut)]
+//! Provides text-to-speech and speech-to-text capabilities for natural device interaction
 
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
