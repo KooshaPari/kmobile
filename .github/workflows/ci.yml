@@ -241,15 +241,19 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       
+    - name: List downloaded files (debug)
+      run: find . -type f -name "kmobile*" -ls
+      
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          kmobile-linux-x86_64/kmobile-linux-x86_64
-          kmobile-windows-x86_64.exe/kmobile-windows-x86_64.exe
-          kmobile-macos-x86_64/kmobile-macos-x86_64
-          kmobile-macos-aarch64/kmobile-macos-aarch64
+          kmobile-linux-x86_64/*
+          kmobile-windows-x86_64.exe/*
+          kmobile-macos-x86_64/*
+          kmobile-macos-aarch64/*
         draft: false
         prerelease: false
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
