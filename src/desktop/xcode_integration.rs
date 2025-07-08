@@ -513,8 +513,8 @@ impl XcodeIntegration {
                             },
                             availability: device["availability"].as_str().unwrap_or("").to_string(),
                             is_available: device["isAvailable"].as_bool().unwrap_or(false),
-                            dataPath: device["dataPath"].as_str().map(PathBuf::from),
-                            logPath: device["logPath"].as_str().map(PathBuf::from),
+                            data_path: device["dataPath"].as_str().map(PathBuf::from),
+                            log_path: device["logPath"].as_str().map(PathBuf::from),
                         };
                         simulators.push(simulator);
                     }

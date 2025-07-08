@@ -399,8 +399,8 @@ impl AudioPanel {
                 if ui.button("🗣️ Speak").clicked() {
                     info!("🗣️ Speaking text: {}", self.tts_text);
                     // Trigger TTS using audio processor
-                    if let Ok(mut processor) = self.audio_processor.try_write() {
-                        let text = self.tts_text.clone();
+                    if let Ok(_processor) = self.audio_processor.try_write() {
+                        let _text = self.tts_text.clone();
                         tokio::spawn(async move {
                             // This would work in async context
                             // let _ = processor.speak(&text).await;
@@ -410,7 +410,7 @@ impl AudioPanel {
                 if ui.button("⏹️ Stop").clicked() {
                     info!("⏹️ Stopping speech");
                     // Stop TTS using audio processor
-                    if let Ok(mut processor) = self.audio_processor.try_write() {
+                    if let Ok(_processor) = self.audio_processor.try_write() {
                         tokio::spawn(async move {
                             // let _ = processor.stop_speech().await;
                         });
@@ -494,7 +494,7 @@ impl VisionPanel {
                 if ui.button("📸 Analyze Current Frame").clicked() {
                     info!("🔍 Analyzing current screen frame");
                     // Trigger screen analysis using screen analyzer
-                    if let Ok(analyzer) = self.screen_analyzer.try_read() {
+                    if let Ok(_analyzer) = self.screen_analyzer.try_read() {
                         tokio::spawn(async move {
                             // This would work in async context
                             // let fake_screenshot = vec![0u8; 1920 * 1080 * 4]; // RGBA

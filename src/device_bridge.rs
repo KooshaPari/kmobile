@@ -435,8 +435,8 @@ impl DeviceBridge {
             );
 
             // Start accepting connections in background
-            let host = self.host.clone();
-            let port = self.port;
+            let _host = self.host.clone();
+            let _port = self.port;
             tokio::spawn(async move {
                 while let Ok((stream, addr)) = listener.accept().await {
                     info!("📱 New device connection from: {}", addr);
